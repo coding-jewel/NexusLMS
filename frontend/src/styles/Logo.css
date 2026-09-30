@@ -1,0 +1,16 @@
+.logo { 
+  display: inline-flex; 
+  align-items: center; 
+  gap: 0.55rem; color: 
+  var(--indigo-600); 
+  font: 800 1.3rem var(--font-display); 
+  letter-spacing: -0.03em; 
+}
+
+.logo span { 
+  color: var(--slate-900); 
+}
+
+.logo--light, .logo--light span { 
+  color: #fff; 
+}
