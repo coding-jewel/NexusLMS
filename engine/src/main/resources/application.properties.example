@@ -1,0 +1,6 @@
+spring.application.name=engine
+spring.data.mongodb.uri=your-Atlas-or-localhost-uri
+spring.data.mongodb.database=your-database-name
+cloudinary.url=your-cloudinary-url
+jwt.secret=your-jwt-secret
+jwt.expiration=86400000
