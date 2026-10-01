@@ -1,20 +1,7 @@
-.shell { 
-  display: grid; 
-  grid-template-columns: 240px 1fr; 
-  min-height: 100vh; 
-  background: var(--slate-50); 
-}
-.sidebar { 
-  background: #fff; 
-  border-right: 1px solid var(--slate-200); 
-  padding: 1.4rem 1rem; 
-  display: flex; 
-  flex-direction: column; 
-  gap: 1.6rem; 
-  position: sticky; 
-  top: 0; 
-  height: 100vh; 
-}
+@import './form.css';
+
+.shell { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; background: var(--slate-50); }
+.sidebar { background: #fff; border-right: 1px solid var(--slate-200); padding: 1.4rem 1rem; display: flex; flex-direction: column; gap: 1.6rem; position: sticky; top: 0; height: 100vh; }
 .sidebar__brand { padding: 0 .6rem; }
 .sidebar nav { display: grid; gap: .2rem; }
 .sidebar__link { padding: .65rem .8rem; border-radius: var(--radius-md); font-weight: 500; color: var(--slate-500); }
@@ -64,3 +51,45 @@ td strong { color: var(--slate-900); }
   .topbar, .content { padding: 1rem; }
   .topbar__user div { display: none; }
 }
+
+/* address card */
+.address-card { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; padding: 1.4rem 1.6rem; border-radius: var(--radius-lg); background: var(--indigo-900); color: var(--indigo-100); }
+.address-card__label { display: block; font-size: .85rem; color: var(--teal-100); margin-bottom: .2rem; }
+.address-card strong { display: block; font: 800 1.6rem var(--font-display); color: #fff; letter-spacing: -0.02em; }
+.address-card p { margin-top: .3rem; font-size: .92rem; }
+
+/* page pieces */
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.page-head p { color: var(--slate-500); max-width: 34rem; }
+.btn--sm { padding: .4rem .75rem; font-size: .85rem; }
+.row-actions { display: flex; gap: .5rem; }
+.badge { display: inline-block; padding: .2rem .65rem; border-radius: 99px; font-size: .82rem; font-weight: 600; background: var(--slate-100); color: var(--slate-500); }
+.badge--live { background: var(--teal-100); color: var(--teal-700); }
+.filter { display: flex; align-items: center; gap: .6rem; font-size: .9rem; font-weight: 600; }
+.filter select, .input-action input { font: 400 .95rem var(--font-body); padding: .5rem .7rem; border: 1px solid var(--slate-200); border-radius: var(--radius-md); background: #fff; }
+.empty { padding: 2rem 1rem; text-align: center; color: var(--slate-500); }
+.hint { font-size: .88rem; color: var(--slate-500); }
+
+/* modal */
+.modal { position: fixed; inset: 0; z-index: 50; background: rgba(15, 23, 42, .5); display: grid; place-items: center; padding: 1rem; }
+.modal__box { width: min(460px, 100%); background: #fff; border-radius: var(--radius-lg); padding: 1.6rem; box-shadow: var(--shadow-lift); }
+.modal__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
+.modal__head h2 { font-size: 1.35rem; }
+.modal__close { background: none; border: 0; font-size: 1.6rem; line-height: 1; cursor: pointer; color: var(--slate-500); }
+.modal__form { display: grid; gap: 1rem; }
+.input-action { display: flex; gap: .5rem; }
+.input-action input { flex: 1; }
+.credentials { display: grid; gap: .6rem; padding: 1rem; background: var(--indigo-50); border-radius: var(--radius-md); margin: 0; }
+.credentials div { display: flex; justify-content: space-between; gap: 1rem; }
+.credentials dt { color: var(--slate-500); font-size: .9rem; }
+.credentials dd { margin: 0; font-weight: 600; color: var(--slate-900); word-break: break-all; text-align: right; }
+
+/* assign teacher */
+.cell-wrap { white-space: normal; min-width: 11rem; }
+.muted-text { color: var(--slate-400); }
+.check-list { display: grid; gap: .4rem; max-height: 18rem; overflow-y: auto; }
+.check-item { display: flex; align-items: center; gap: .8rem; padding: .7rem .8rem; border: 1px solid var(--slate-200); border-radius: var(--radius-md); cursor: pointer; }
+.check-item:hover { border-color: var(--indigo-500); }
+.check-item input { width: 18px; height: 18px; accent-color: var(--indigo-600); }
+.check-item span { display: grid; line-height: 1.3; }
+.check-item small { color: var(--slate-500); }

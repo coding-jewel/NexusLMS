@@ -39,7 +39,7 @@ export default function Login() {
           <label className="field"><span>Password</span><input type="password" required /></label>
 
           <button className="btn btn--primary btn--block btn--lg" type="submit">Sign in</button>
-          <p className="auth__foot">Have a class code? <Link to="/login">Join a class</Link></p>
+          <p className="auth__foot">Have a class code? <Link to="/join">Join a class</Link></p>
         </form>
       </main>
     </div>

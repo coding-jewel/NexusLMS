@@ -1,0 +1,10 @@
+.field { display: grid; gap: .35rem; font-size: .92rem; font-weight: 600; color: var(--slate-900); }
+.field input, .subdomain__edit input {
+  font: 400 1rem var(--font-body); padding: .7rem .85rem; border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md); background: #fff; color: var(--slate-900); width: 100%;
+}
+.field input:focus, .subdomain__edit input:focus { outline: none; border-color: var(--indigo-500); box-shadow: 0 0 0 3px var(--indigo-100); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.field__error { margin-top: .4rem; font-size: .88rem; color: var(--danger); }
+
+.btn:disabled { opacity: .5; cursor: not-allowed; }
