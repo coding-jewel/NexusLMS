@@ -1,15 +1,24 @@
 package com.nexuslms.engine.models;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
 @Document("users")
+@CompoundIndexes({
+        //the same email can't appear twice in one school
+        @CompoundIndex(name = "tenant_email_unique", def = "{'tenantId' : 1, 'email' : 1}", unique = true),
+        //an admin's email belongs to one school only
+        @CompoundIndex(name = "admin_email_unique", def = "{'email' : 1}", unique = true)
+})
 public class User {
     @Id
     private String id;
@@ -25,6 +34,7 @@ public class User {
     private String email;
 
     @NotBlank(message = "Password is required")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     @NotNull(message = "Role is required")

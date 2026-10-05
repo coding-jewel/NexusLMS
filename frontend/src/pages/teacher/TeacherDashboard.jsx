@@ -24,7 +24,7 @@ export default function TeacherDashboard() {
               <span>{c.className}</span>
             </div>
             <div className="course-card__body">
-              <p>{c.students} students · {c.assignments} assignments · {c.quizzes} quizzes</p>
+              <p>{c.students} students · {c.assignments} assignments · {c.quizzes} tests & exams</p>
               <span className={`badge ${c.published ? 'badge--live' : ''}`}>{c.published ? 'Published' : 'Draft'}</span>
             </div>
           </Link>

@@ -20,6 +20,7 @@ public class Tenant {
     private String name;
 
     @NotBlank(message = "Subdomain is required")
+    @Indexed(unique = true)
     private String subdomain;
 
     private boolean active = true;

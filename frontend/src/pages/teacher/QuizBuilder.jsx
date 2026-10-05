@@ -12,6 +12,9 @@ export default function QuizBuilder() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [minutes, setMinutes] = useState(30)
+  const [category, setCategory] = useState('TEST')
+  const [guard, setGuard] = useState('RECORD')
+  const [limit, setLimit] = useState(3)
   const [questions, setQuestions] = useState([blank('MULTIPLE_CHOICE')])
 
   const update = (qid, patch) => setQuestions((qs) => qs.map((q) => (q.id === qid ? { ...q, ...patch } : q)))
@@ -24,13 +27,36 @@ export default function QuizBuilder() {
   const done = () => navigate(`/teacher/courses/${id}`) // template only: real flow saves the quiz first
 
   return (
-    <AppLayout role="teacher" title="New quiz">
+    <AppLayout role="teacher" title="New test or exam">
       <Link to={`/teacher/courses/${id}`} className="back">← Back to course</Link>
 
       <section className="panel quiz-meta">
-        <label className="field"><span>Quiz title</span><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Quiz 2: Equations" /></label>
+        <label className="field"><span>Title</span><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Term 1 Mathematics Test" /></label>
+        <label className="field">
+          <span>Type</span>
+          <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="TEST">Test</option>
+            <option value="EXAM">Exam</option>
+          </select>
+        </label>
+        <label className="field"><span>Opens</span><input type="datetime-local" /></label>
+        <label className="field"><span>Closes</span><input type="datetime-local" /></label>
         <label className="field"><span>Time limit (minutes)</span><input type="number" min="1" value={minutes} onChange={(e) => setMinutes(e.target.value)} /></label>
-        <label className="field quiz-meta__wide"><span>Instructions</span><input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" /></label>
+        <label className="field"><span>Instructions</span><input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" /></label>
+        <div className="quiz-meta__wide guard">
+          <label className="field">
+            <span>If a student leaves the test page</span>
+            <select className="select" value={guard} onChange={(e) => setGuard(e.target.value)}>
+              <option value="OFF">Do nothing</option>
+              <option value="RECORD">Record it and show it to me</option>
+              <option value="AUTO">Record it and auto-submit after a set number of times</option>
+            </select>
+          </label>
+          {guard === 'AUTO' && (
+            <label className="field marks"><span>Submit after</span><input type="number" min="1" max="10" value={limit} onChange={(e) => setLimit(e.target.value)} /></label>
+          )}
+        </div>
+        <p className="hint quiz-meta__wide">Students get one attempt. The clock starts when they press Start, and answers are saved as they go. Leaving the page is only a record, not proof of cheating.</p>
       </section>
 
       {questions.map((q, i) => (
@@ -71,7 +97,7 @@ export default function QuizBuilder() {
         <span><strong>{questions.length}</strong> questions · <strong>{total}</strong> marks</span>
         <div>
           <button className="btn btn--ghost" onClick={done}>Save draft</button>
-          <button className="btn btn--primary" onClick={done}>Publish quiz</button>
+          <button className="btn btn--primary" onClick={done}>Publish</button>
         </div>
       </div>
     </AppLayout>

@@ -1,11 +1,14 @@
 package com.nexuslms.engine.controller;
 
-import com.nexuslms.engine.models.SchoolClass;
+import com.nexuslms.engine.dto.ClassRequest;
+import com.nexuslms.engine.dto.ClassResponse;
+import com.nexuslms.engine.security.AuthUser;
 import com.nexuslms.engine.service.SchoolClassService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,27 +25,28 @@ public class SchoolClassController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
-    public ResponseEntity<SchoolClass> createClass(@Valid @RequestBody SchoolClass schoolClass) {
-        SchoolClass created = schoolClassService.createClass(schoolClass);
+    public ResponseEntity<ClassResponse> create(@Valid @RequestBody ClassRequest request, @AuthenticationPrincipal AuthUser auth) {
+        ClassResponse created = ClassResponse.from(schoolClassService.create(auth.tenantId(), request));
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @GetMapping("/tenant/{tenantId}")
-    public ResponseEntity<List<SchoolClass>> getAllClassesByTenant(@PathVariable String tenantId) {
-        return ResponseEntity.ok(schoolClassService.getAllClassesByTenant(tenantId));
+    // Teachers can see their school's classes too, because they share class codes with students.
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @GetMapping
+    public List<ClassResponse> list(@AuthenticationPrincipal AuthUser auth) {
+        return schoolClassService.list(auth.tenantId()).stream().map(ClassResponse::from).toList();
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<SchoolClass> getClassById(@PathVariable String id) {
-        return schoolClassService.getClassById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{id}/regenerate-code")
+    public ClassResponse regenerateCode(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        return ClassResponse.from(schoolClassService.regenerateCode(auth.tenantId(), id));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteClass(@PathVariable String id) {
-        schoolClassService.deleteClass(id);
+    public ResponseEntity<Void> delete(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        schoolClassService.delete(auth.tenantId(), id);
         return ResponseEntity.noContent().build();
     }
 }

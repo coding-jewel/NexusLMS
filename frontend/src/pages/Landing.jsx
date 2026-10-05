@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import Logo from '../components/Logo'
-import { features } from '../data/mock'
 import '../styles/Landing.css'
 
 const steps = [
@@ -8,6 +7,15 @@ const steps = [
   ['Create classes', 'Set up the classes and sections your school runs.'],
   ['Add teachers', 'Enter each teacher’s details. Their account is ready to use.'],
   ['Students join', 'Share a class code. Students enter it and land in the right class.'],
+]
+
+const features = [
+  ['Classes', 'Group students into classes and sections. Each class has its own join code.'],
+  ['Courses and notes', 'Teachers publish notes and materials for their class, and students read them anywhere.'],
+  ['Assignments and file uploads', 'Set a due date, attach files, and collect student work in one place.'],
+  ['Quizzes with auto-grading', 'Multiple-choice questions are marked instantly. Open-ended answers wait for the teacher.'],
+  ['Gradebook', 'Every score for every student, by course, without a spreadsheet.'],
+  ['Roles and permissions', 'Admins, teachers and students each see only what they need.'],
 ]
 
 export default function Landing() {
@@ -19,7 +27,10 @@ export default function Landing() {
           <nav className="nav__links" aria-label="Main">
             <a href="#how">How it works</a>
             <a href="#features">Features</a>
-            <Link to="/register" className="btn btn--primary">Register your school</Link>
+            <div className="nav__actions">
+              <Link to="/login" className="btn btn--ghost">Log in</Link>
+              <Link to="/register" className="btn btn--primary" aria-label="Register your school">Register<span className="nav__long"> your school</span></Link>
+            </div>
           </nav>
         </div>
       </header>

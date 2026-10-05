@@ -21,11 +21,12 @@ public class JwtService {
     private long expiration;
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String email, String role, String tenantId) {
-        Map<String, Object> claims =new HashMap<>();
+    public String generateToken(String userId, String email, String role, String tenantId) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
         claims.put("role", role);
         claims.put("tenantId", tenantId);
 
@@ -36,6 +37,10 @@ public class JwtService {
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    public String extractUserId(String token) {
+        return (String) extractClaims(token).get("userId");
     }
 
     public String extractEmail(String token) {

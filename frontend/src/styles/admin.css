@@ -93,3 +93,23 @@ td strong { color: var(--slate-900); }
 .check-item input { width: 18px; height: 18px; accent-color: var(--indigo-600); }
 .check-item span { display: grid; line-height: 1.3; }
 .check-item small { color: var(--slate-500); }
+
+/* grading weights */
+.weights { max-width: 560px; display: grid; gap: 1.1rem; }
+.weights__row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--slate-100); }
+.weights__row span:first-child { display: grid; }
+.weights__row small { color: var(--slate-500); }
+.weights__input { display: flex; align-items: center; gap: .4rem; font-weight: 600; }
+.weights__input input { width: 5.5rem; font: 400 1rem var(--font-body); padding: .6rem .7rem; border: 1px solid var(--slate-200); border-radius: var(--radius-md); text-align: right; }
+.weights__total { display: flex; justify-content: space-between; align-items: center; font-weight: 700; color: var(--slate-900); }
+.weights__actions { display: flex; align-items: center; gap: 1rem; }
+.saved { color: var(--teal-700); font-weight: 600; }
+
+/* classes page */
+.class-desc { display: block; font-size: .82rem; color: var(--slate-500); font-weight: 400; white-space: normal; }
+.row-actions { flex-wrap: wrap; }
+.btn.btn--danger { color: var(--danger); }
+.btn.btn--danger:hover { border-color: var(--danger); background: var(--danger-bg); }
+.btn.btn--danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.btn--danger-solid:hover { filter: brightness(.92); }
+.confirm-actions { display: flex; gap: .6rem; justify-content: flex-end; }

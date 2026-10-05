@@ -3,10 +3,11 @@ import { Link, useParams } from 'react-router-dom'
 import AppLayout from '../../components/AppLayout'
 import Modal from '../../components/Modal'
 import FilePicker from '../../components/FilePicker'
+import { TypeBadge, StatusBadge } from '../../components/Badges'
 import { teacherCourses, courseDetail as d, teacher } from '../../data/mock'
 import '../../styles/teacher.css'
 
-const TABS = ['Notes', 'Assignments', 'Quizzes', 'People']
+const TABS = ['Notes', 'Assignments', 'Tests & Exams', 'People']
 const fmtDue = (v) => new Date(v).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
 
 export default function CourseDetail() {
@@ -16,6 +17,8 @@ export default function CourseDetail() {
   const [published, setPublished] = useState(course.published)
   const [notes, setNotes] = useState(d.notes)
   const [assignments, setAssignments] = useState(d.assignments)
+  const [quizzes, setQuizzes] = useState(d.quizzes)
+  const toggleRelease = (qid) => setQuizzes(quizzes.map((q) => (q.id === qid ? { ...q, released: !q.released } : q)))
   const [modal, setModal] = useState(null) // 'note' | 'assignment' | null
   const close = () => setModal(null)
 
@@ -75,16 +78,18 @@ export default function CourseDetail() {
           </>
         )}
 
-        {tab === 'Quizzes' && (
+        {tab === 'Tests & Exams' && (
           <>
-            <div className="panel__head"><h2>Quizzes</h2><Link to={`/teacher/courses/${course.id}/quizzes/new`} className="btn btn--primary btn--sm">New quiz</Link></div>
+            <div className="panel__head"><h2>Tests &amp; Exams</h2><Link to={`/teacher/courses/${course.id}/quizzes/new`} className="btn btn--primary btn--sm">New test or exam</Link></div>
             <ul className="rows">
-              {d.quizzes.map((q) => (
+              {quizzes.map((q) => (
                 <li key={q.id}>
-                  <div><strong>{q.title}</strong><small>{q.questions} questions · {q.minutes} min</small></div>
+                  <div><strong>{q.title}</strong><small>{q.questions} questions · {q.minutes} min · one attempt</small></div>
                   <div className="rows__end">
+                    <TypeBadge category={q.category} />
+                    <StatusBadge status={q.status} />
                     <span>{q.attempts} attempts</span>
-                    <span className={`badge ${q.published ? 'badge--live' : ''}`}>{q.published ? 'Published' : 'Draft'}</span>
+                    {q.attempts > 0 && <button className="btn btn--ghost btn--sm" onClick={() => toggleRelease(q.id)}>{q.released ? 'Hide results' : 'Release results'}</button>}
                     {q.attempts > 0 && <Link to={`/teacher/courses/${course.id}/quizzes/${q.id}/mark`} className="btn btn--ghost btn--sm">Mark answers</Link>}
                   </div>
                 </li>

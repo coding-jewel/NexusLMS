@@ -32,7 +32,7 @@ export default function Join() {
           <label className="field"><span>Email</span><input type="email" placeholder="you@mail.com" required /></label>
           <label className="field"><span>Password</span><input type="password" placeholder="At least 8 characters" minLength={8} required /></label>
           <button className="btn btn--primary btn--block btn--lg" type="submit">Join class</button>
-          <p className="auth__foot">Already have an account? <Link to="/login">Sign in</Link></p>
+          <p className="auth__foot">Already have an account? <Link to="/login">Sign in</Link>, then use “Join another class” on your dashboard.</p>
         </form>
       </main>
     </div>

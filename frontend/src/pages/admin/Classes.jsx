@@ -1,83 +1,156 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import AdminLayout from '../../components/AdminLayout'
 import CopyButton from '../../components/CopyButton'
 import Modal from '../../components/Modal'
-import { school, classes, teachers } from '../../data/mock'
+import { useTenant } from '../../tenant/TenantContext'
+import { schoolUrl } from '../../utils/tenant'
+import { listClasses, createClass, regenerateCode, deleteClass } from '../../api/classes'
+
+const byName = (list) => [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+const formatDate = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—')
 
 export default function Classes() {
+  const { subdomain } = useTenant()
+  const [classes, setClasses] = useState(null) // null while loading
+  const [loadError, setLoadError] = useState('')
+
   const [createOpen, setCreateOpen] = useState(false)
-  const [assigning, setAssigning] = useState(null) // the class being edited
-  const [picked, setPicked] = useState([]) // teacher ids ticked in the modal
+  const [form, setForm] = useState({ name: '', description: '' })
+  const [formError, setFormError] = useState('')
 
-  // template only: start from the teachers' mock "classes" text
-  const [assigned, setAssigned] = useState(() =>
-    Object.fromEntries(classes.map((c) => [c.id, teachers.filter((t) => t.classes.includes(c.name)).map((t) => t.id)]))
-  )
+  const [confirm, setConfirm] = useState(null) // { kind: 'regenerate' | 'delete', cls }
+  const [confirmError, setConfirmError] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  const invite = (code) => `https://${school.subdomain}.nexuslms.com/join?code=${code}`
-  const namesFor = (id) => teachers.filter((t) => assigned[id].includes(t.id)).map((t) => t.name)
+  const load = () => {
+    setLoadError('')
+    setClasses(null)
+    listClasses().then((list) => setClasses(byName(list))).catch((err) => setLoadError(err.message))
+  }
+  useEffect(() => { load() }, [])
 
-  const openAssign = (c) => { setAssigning(c); setPicked(assigned[c.id]) }
-  const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
-  const saveAssign = () => { setAssigned({ ...assigned, [assigning.id]: picked }); setAssigning(null) }
+  const invite = (code) => schoolUrl(subdomain, `/join?code=${encodeURIComponent(code)}`)
+
+  const openCreate = () => { setForm({ name: '', description: '' }); setFormError(''); setCreateOpen(true) }
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    setFormError('')
+    setBusy(true)
+    try {
+      const created = await createClass(form)
+      setClasses(byName([...classes, created]))
+      setCreateOpen(false)
+    } catch (err) {
+      setFormError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const openConfirm = (kind, cls) => { setConfirmError(''); setConfirm({ kind, cls }) }
+
+  const runConfirm = async () => {
+    setConfirmError('')
+    setBusy(true)
+    try {
+      const { kind, cls } = confirm
+      if (kind === 'delete') {
+        await deleteClass(cls.id)
+        setClasses(classes.filter((c) => c.id !== cls.id))
+      } else {
+        const updated = await regenerateCode(cls.id)
+        setClasses(classes.map((c) => (c.id === updated.id ? updated : c)))
+      }
+      setConfirm(null)
+    } catch (err) {
+      setConfirmError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <AdminLayout title="Classes">
       <div className="page-head">
-        <p>Students join a class with its code or invite link. Teachers are assigned by you.</p>
-        <button className="btn btn--primary" onClick={() => setCreateOpen(true)}>Create class</button>
+        <p>Students join a class with its code or invite link.</p>
+        <button className="btn btn--primary" onClick={openCreate} disabled={classes === null}>Create class</button>
       </div>
 
       <section className="panel">
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Class</th><th>Teachers</th><th>Students</th><th>Join code</th><th>Actions</th></tr></thead>
-            <tbody>
-              {classes.map((c) => {
-                const names = namesFor(c.id)
-                return (
+        {loadError ? (
+          <div className="empty">
+            <p className="field__error" role="alert">{loadError}</p>
+            <button className="btn btn--ghost" onClick={load}>Try again</button>
+          </div>
+        ) : classes === null ? (
+          <p className="empty">Loading classes…</p>
+        ) : classes.length === 0 ? (
+          <p className="empty">No classes yet. Create your first class to get a join code.</p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Class</th><th>Join code</th><th>Created</th><th>Actions</th></tr></thead>
+              <tbody>
+                {classes.map((c) => (
                   <tr key={c.id}>
-                    <td><strong>{c.name}</strong></td>
-                    <td className="cell-wrap">{names.length ? names.join(', ') : <span className="muted-text">None assigned</span>}</td>
-                    <td>{c.students}</td>
-                    <td><code className="code">{c.code}</code></td>
-                    <td className="row-actions">
-                      <button className="btn btn--ghost btn--sm" onClick={() => openAssign(c)}>Assign teacher</button>
-                      <CopyButton text={c.code} label="Copy code" />
-                      <CopyButton text={invite(c.code)} label="Copy invite link" />
+                    <td>
+                      <strong>{c.name}</strong>
+                      {c.description && <span className="class-desc">{c.description}</span>}
+                    </td>
+                    <td>{c.code ? <code className="code">{c.code}</code> : <span className="muted-text">No code yet</span>}</td>
+                    <td>{formatDate(c.createdAt)}</td>
+                    <td className="cell-wrap">
+                      <div className="row-actions">
+                        {c.code && <CopyButton text={c.code} label="Copy code" />}
+                        {c.code && <CopyButton text={invite(c.code)} label="Copy invite link" />}
+                        <button className="btn btn--ghost btn--sm" onClick={() => openConfirm('regenerate', c)}>New code</button>
+                        <button className="btn btn--ghost btn--sm btn--danger" onClick={() => openConfirm('delete', c)}>Delete</button>
+                      </div>
                     </td>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {createOpen && (
         <Modal title="Create class" onClose={() => setCreateOpen(false)}>
-          <form className="modal__form" onSubmit={(e) => { e.preventDefault(); setCreateOpen(false) }}>
-            <label className="field"><span>Class name</span><input placeholder="JSS 3 Green" required /></label>
-            <label className="field"><span>Description</span><input placeholder="Optional" /></label>
+          <form className="modal__form" onSubmit={handleCreate}>
+            <label className="field">
+              <span>Class name</span>
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="JSS 3 Green" maxLength={60} required />
+            </label>
+            <label className="field">
+              <span>Description</span>
+              <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Optional" maxLength={200} />
+            </label>
             <p className="hint">A join code is created automatically.</p>
-            <button className="btn btn--primary btn--block" type="submit">Create class</button>
+            {formError && <p className="field__error" role="alert">{formError}</p>}
+            <button className="btn btn--primary btn--block" type="submit" disabled={busy || !form.name.trim()}>
+              {busy ? 'Creating…' : 'Create class'}
+            </button>
           </form>
         </Modal>
       )}
 
-      {assigning && (
-        <Modal title={`Assign teachers to ${assigning.name}`} onClose={() => setAssigning(null)}>
+      {confirm && (
+        <Modal title={confirm.kind === 'delete' ? 'Delete class?' : 'Make a new code?'} onClose={() => setConfirm(null)}>
           <div className="modal__form">
-            <div className="check-list">
-              {teachers.map((t) => (
-                <label key={t.id} className="check-item">
-                  <input type="checkbox" checked={picked.includes(t.id)} onChange={() => toggle(t.id)} />
-                  <span><strong>{t.name}</strong><small>{t.email}</small></span>
-                </label>
-              ))}
+            {confirm.kind === 'delete' ? (
+              <p>Delete <strong>{confirm.cls.name}</strong>? This can’t be undone.</p>
+            ) : (
+              <p>Make a new code for <strong>{confirm.cls.name}</strong>? The old code and any invite links you’ve already shared will stop working.</p>
+            )}
+            {confirmError && <p className="field__error" role="alert">{confirmError}</p>}
+            <div className="confirm-actions">
+              <button className="btn btn--ghost" onClick={() => setConfirm(null)}>Cancel</button>
+              <button className={`btn ${confirm.kind === 'delete' ? 'btn--danger-solid' : 'btn--primary'}`} onClick={runConfirm} disabled={busy}>
+                {busy ? 'Working…' : confirm.kind === 'delete' ? 'Delete class' : 'Make new code'}
+              </button>
             </div>
-            <p className="hint">Untick a teacher to remove them from this class.</p>
-            <button className="btn btn--primary btn--block" onClick={saveAssign}>Save</button>
           </div>
         </Modal>
       )}

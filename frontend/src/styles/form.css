@@ -8,3 +8,9 @@
 .field__error { margin-top: .4rem; font-size: .88rem; color: var(--danger); }
 
 .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* password field with a show/hide button */
+.password { position: relative; }
+.password input { padding-right: 2.9rem; }
+.password__toggle { position: absolute; top: 50%; right: .35rem; transform: translateY(-50%); display: grid; place-items: center; width: 2.2rem; height: 2.2rem; border: 0; border-radius: var(--radius-sm); background: none; color: var(--slate-500); cursor: pointer; }
+.password__toggle:hover { color: var(--indigo-600); background: var(--indigo-50); }

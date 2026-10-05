@@ -29,7 +29,7 @@ export default function MarkQuiz() {
             {attempts.map((a) => (
               <li key={a.id}>
                 <button className={`sub-item ${a.id === selId ? 'is-active' : ''}`} onClick={() => pick(a)}>
-                  <span><strong>{a.student}</strong><small>Auto score {autoScore(a)}</small></span>
+                  <span><strong>{a.student}</strong><small>Auto score {autoScore(a)}{a.leftPage > 0 && <> · <span className="flag">left page {a.leftPage}×</span></>}</small></span>
                   <span className={`badge ${a.graded ? 'badge--live' : 'badge--warn'}`}>{a.graded ? `${score(a)}/${totalMarks}` : 'To mark'}</span>
                 </button>
               </li>
@@ -39,6 +39,11 @@ export default function MarkQuiz() {
 
         <section className="panel">
           <h2>{sel.student}</h2>
+          {sel.leftPage > 0 && (
+            <p className="flag-note">
+              Left the test page {sel.leftPage} {sel.leftPage === 1 ? 'time' : 'times'}{sel.autoSubmitted ? ' and was submitted automatically' : ''}. This is a record, not proof of cheating.
+            </p>
+          )}
           <ol className="answers">
             {quiz.questions.map((q, i) => {
               const ans = sel.answers[i]

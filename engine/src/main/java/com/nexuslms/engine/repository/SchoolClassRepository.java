@@ -16,4 +16,7 @@ public interface SchoolClassRepository extends MongoRepository<SchoolClass, Stri
 
     @Query(value = "{ 'name': ?0, 'tenantId': ?1 }", exists = true)
     boolean existsByNameAndTenantId(String name, String tenantId);
+
+    @Query(value = "{ 'code': ?0 }", exists = true)
+    boolean existsByCode(String code);
 }

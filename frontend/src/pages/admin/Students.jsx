@@ -4,12 +4,12 @@ import { classes, students } from '../../data/mock'
 
 export default function Students() {
   const [cls, setCls] = useState('all')
-  const list = cls === 'all' ? students : students.filter((s) => s.className === cls)
+  const list = cls === 'all' ? students : students.filter((s) => s.classes.includes(cls))
 
   return (
     <AdminLayout title="Students">
       <div className="page-head">
-        <p>Students appear here after they join with a class code.</p>
+        <p>Students appear here after they join with a class code. A student can be in more than one class.</p>
         <label className="filter">
           <span>Class</span>
           <select value={cls} onChange={(e) => setCls(e.target.value)}>
@@ -24,8 +24,16 @@ export default function Students() {
         ) : (
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Name</th><th>Email</th><th>Class</th></tr></thead>
-              <tbody>{list.map((s) => (<tr key={s.id}><td><strong>{s.name}</strong></td><td>{s.email}</td><td>{s.className}</td></tr>))}</tbody>
+              <thead><tr><th>Name</th><th>Email</th><th>Classes</th></tr></thead>
+              <tbody>
+                {list.map((s) => (
+                  <tr key={s.id}>
+                    <td><strong>{s.name}</strong></td>
+                    <td>{s.email}</td>
+                    <td><div className="chips">{s.classes.map((c) => <span key={c} className="badge badge--test">{c}</span>)}</div></td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         )}
