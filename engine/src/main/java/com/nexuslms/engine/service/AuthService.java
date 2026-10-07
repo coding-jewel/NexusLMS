@@ -3,6 +3,7 @@ package com.nexuslms.engine.service;
 import com.nexuslms.engine.dto.AuthResponse;
 import com.nexuslms.engine.dto.LoginRequest;
 import com.nexuslms.engine.dto.UserResponse;
+import com.nexuslms.engine.exception.InvalidRequestException;
 import com.nexuslms.engine.models.Tenant;
 import com.nexuslms.engine.models.User;
 import com.nexuslms.engine.repository.TenantRepository;
@@ -42,6 +43,10 @@ public class AuthService {
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new BadCredentialsException(INVALID);
         }
+        // Only someone who knows the right password learns that their request is still waiting.
+        if (!user.isApproved()) {
+            throw new InvalidRequestException("Your account is waiting for approval from your school admin.");
+        }
 
         String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole().name(), user.getTenantId());
         return new AuthResponse(token, UserResponse.from(user));
@@ -54,6 +59,7 @@ public class AuthService {
         }
         return userRepository.findById(userId)
                 .filter(User::isActive)
+                .filter(User::isApproved)
                 .map(UserResponse::from)
                 .orElseThrow(() -> new BadCredentialsException("Session expired"));
     }

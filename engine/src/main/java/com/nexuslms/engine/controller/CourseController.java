@@ -1,11 +1,14 @@
 package com.nexuslms.engine.controller;
 
-import com.nexuslms.engine.models.Course;
+import com.nexuslms.engine.dto.CourseRequest;
+import com.nexuslms.engine.dto.CourseResponse;
+import com.nexuslms.engine.security.AuthUser;
 import com.nexuslms.engine.service.CourseService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,45 +23,33 @@ public class CourseController {
         this.courseService = courseService;
     }
 
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('TEACHER')")
     @PostMapping
-    public ResponseEntity<Course> createCourse(@Valid @RequestBody Course course) {
-        Course created = courseService.createCourse(course);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<CourseResponse> create(@Valid @RequestBody CourseRequest request, @AuthenticationPrincipal AuthUser auth) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(courseService.create(auth, request));
     }
 
-    @GetMapping("/tenant/{tenantId}")
-    public ResponseEntity<List<Course>> getAllCoursesByTenant(@PathVariable String tenantId) {
-        return ResponseEntity.ok(courseService.getAllCoursesByTenant(tenantId));
-    }
-
-    @GetMapping("/class/{classId}")
-    public ResponseEntity<List<Course>> getAllCoursesByClass(@PathVariable String classId) {
-        return ResponseEntity.ok(courseService.getAllCoursesByClass(classId));
-    }
-
-    @GetMapping("/teacher/{teacherId}")
-    public ResponseEntity<List<Course>> getAllCoursesByTeacher(@PathVariable String teacherId) {
-        return ResponseEntity.ok(courseService.getAllCoursesByTeacher(teacherId));
+    // Everyone signed in can ask. The service decides what each role gets back.
+    @GetMapping
+    public List<CourseResponse> list(@AuthenticationPrincipal AuthUser auth) {
+        return courseService.list(auth);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Course> getCourseById(@PathVariable String id) {
-        return courseService.getCourseById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public CourseResponse get(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        return courseService.get(auth, id);
     }
 
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('TEACHER')")
     @PatchMapping("/{id}/publish")
-    public ResponseEntity<Course> publishCourse(@PathVariable String id) {
-        Course published = courseService.publishCourse(id);
-        return ResponseEntity.ok(published);
+    public CourseResponse publish(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        return courseService.publish(auth, id);
     }
 
+    @PreAuthorize("hasRole('TEACHER')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCourse(@PathVariable String id) {
-        courseService.deleteCourse(id);
+    public ResponseEntity<Void> delete(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        courseService.delete(auth, id);
         return ResponseEntity.noContent().build();
     }
 }

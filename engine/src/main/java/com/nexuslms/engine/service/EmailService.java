@@ -10,7 +10,7 @@ public interface EmailService {
 
     static String verificationBody(String schoolName, String code) {
         return "Your verification code is " + code + "\n\n"
-                + "Use it to finish registering " + schoolName + " on NexusLMS. It expires in 15 minutes.\n\n"
-                + "If you didn't try to register a school, you can ignore this email.";
+                + "Use it to finish signing up to " + schoolName + " on NexusLMS. It expires in 15 minutes.\n\n"
+                + "If you didn't try to sign up, you can ignore this email.";
     }
 }

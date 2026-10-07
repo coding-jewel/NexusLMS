@@ -60,4 +60,19 @@ public class ApiExceptionHandler {
   public ResponseEntity<Map<String, String>> notFound(NotFoundException e) {
     return error(HttpStatus.NOT_FOUND, e.getMessage());
   }
+
+  // A pending teacher learns this only after the right password, and the response carries a
+  // code so the frontend can tell it apart from a wrong-password 401 without matching text.
+  @ExceptionHandler(PendingApprovalException.class)
+  public ResponseEntity<Map<String, String>> pendingApproval(PendingApprovalException e) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(Map.of("error", e.getMessage(), "code", "PENDING_APPROVAL"));
+  }
+
+  // A wrong join code gets its own code so the frontend can show it under the code field.
+  @ExceptionHandler(InvalidJoinCodeException.class)
+  public ResponseEntity<Map<String, String>> invalidCode(InvalidJoinCodeException e) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(Map.of("error", e.getMessage(), "code", "INVALID_CODE"));
+  }
 }

@@ -4,6 +4,7 @@ import com.nexuslms.engine.models.Role;
 import com.nexuslms.engine.models.User;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record UserResponse(
         String id,
@@ -11,12 +12,13 @@ public record UserResponse(
         String name,
         String email,
         Role role,
-        String classId,
+        List<String> classIds,
         boolean active,
+        boolean approved,
         LocalDateTime createdAt
 ) {
     public static UserResponse from(User u) {
         return new UserResponse(u.getId(), u.getTenantId(), u.getName(), u.getEmail(),
-                u.getRole(), u.getClassId(), u.isActive(), u.getCreatedAt());
+                u.getRole(), u.getClassIds(), u.isActive(), u.isApproved(), u.getCreatedAt());
     }
 }

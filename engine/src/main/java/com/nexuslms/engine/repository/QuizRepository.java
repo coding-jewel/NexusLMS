@@ -25,4 +25,7 @@ public interface QuizRepository extends MongoRepository<Quiz, String> {
 
     @Query("{ '_id': ?0 }")
     Optional<Quiz> findById(String id);
+
+    @Query(value = "{ 'courseId': ?0 }", exists = true)
+    boolean existsByCourseId(String courseId);
 }

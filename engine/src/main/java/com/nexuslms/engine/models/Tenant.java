@@ -1,6 +1,7 @@
 package com.nexuslms.engine.models;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
@@ -22,6 +23,12 @@ public class Tenant {
     @NotBlank(message = "Subdomain is required")
     @Indexed(unique = true)
     private String subdomain;
+
+    private GradingWeights gradingWeights;
+
+    // The code teachers use to ask to join this school. Unique across all schools.
+    @Indexed(unique = true, sparse = true)
+    private String teacherCode;
 
     private boolean active = true;
 
@@ -54,6 +61,25 @@ public class Tenant {
 
     public void setSubdomain(String subdomain) {
         this.subdomain = subdomain;
+    }
+
+    @JsonIgnore
+    public GradingWeights getGradingWeights() {
+        return gradingWeights;
+    }
+
+    public void setGradingWeights(GradingWeights gradingWeights) {
+        this.gradingWeights = gradingWeights;
+    }
+
+    // Anyone signed in to the school can read the school record, so keep the code out of it.
+    @JsonIgnore
+    public String getTeacherCode() {
+        return teacherCode;
+    }
+
+    public void setTeacherCode(String teacherCode) {
+        this.teacherCode = teacherCode;
     }
 
     public boolean isActive() {

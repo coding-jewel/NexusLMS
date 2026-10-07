@@ -11,13 +11,20 @@ import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Document("users")
 @CompoundIndexes({
         //the same email can't appear twice in one school
         @CompoundIndex(name = "tenant_email_unique", def = "{'tenantId' : 1, 'email' : 1}", unique = true),
-        //an admin's email belongs to one school only
-        @CompoundIndex(name = "admin_email_unique", def = "{'email' : 1}", unique = true)
+        //an admin's email is unique across all schools; teachers and students may repeat elsewhere
+        @CompoundIndex(
+                name = "admin_email_unique",
+                def = "{'email' : 1}",
+                unique = true,
+                partialFilter = "{ 'role': 'ADMIN' }"
+        )
 })
 public class User {
     @Id
@@ -40,9 +47,14 @@ public class User {
     @NotNull(message = "Role is required")
     private Role role;
 
-    private String classId;
+    // The classes this person belongs to (students and teachers can be in several). Admins have none.
+    private List<String> classIds = new ArrayList<>();
 
     private boolean active = true;
+
+    // A teacher who joins with the school's code is not approved until the admin approves them.
+    // True by default, so every account that exists today stays approved.
+    private boolean approved = true;
 
     @CreatedDate
     private LocalDateTime createdAt;
@@ -100,12 +112,12 @@ public class User {
         this.role = role;
     }
 
-    public String getClassId() {
-        return classId;
+    public List<String> getClassIds() {
+        return classIds;
     }
 
-    public void setClassId(String classId) {
-        this.classId = classId;
+    public void setClassIds(List<String> classIds) {
+        this.classIds = classIds == null ? new ArrayList<>() : classIds;
     }
 
     public boolean isActive() {
@@ -114,6 +126,14 @@ public class User {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public boolean isApproved() {
+        return approved;
+    }
+
+    public void setApproved(boolean approved) {
+        this.approved = approved;
     }
 
     public LocalDateTime getCreatedAt() {

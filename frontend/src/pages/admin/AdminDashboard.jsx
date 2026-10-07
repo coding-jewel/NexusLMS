@@ -1,10 +1,34 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout'
 import CopyButton from '../../components/CopyButton'
-import { school, stats, classes, activity } from '../../data/mock'
+import { useTenant } from '../../tenant/TenantContext'
+import { schoolUrl } from '../../utils/tenant'
+import { getStats } from '../../api/stats'
+
+const CARDS = [
+  ['classes', 'Classes'],
+  ['teachers', 'Teachers'],
+  ['students', 'Students'],
+  ['courses', 'Courses'],
+]
 
 export default function AdminDashboard() {
-  const address = `${school.subdomain}.nexuslms.com`
+  const { subdomain } = useTenant()
+  const [stats, setStats] = useState(null) // null while loading
+  const [error, setError] = useState('')
+
+  const load = () => {
+    setError('')
+    setStats(null)
+    getStats().then(setStats).catch((err) => setError(err.message))
+  }
+  useEffect(() => { load() }, [])
+
+  // The sign-in link: lincoln.localhost:5173/login while developing, lincoln.nexuslms.com/login once deployed.
+  const loginUrl = schoolUrl(subdomain, '/login')
+  const address = new URL(loginUrl).host
+
   return (
     <AdminLayout title="Overview">
       <section className="address-card">
@@ -13,48 +37,37 @@ export default function AdminDashboard() {
           <strong>{address}</strong>
           <p>Share this with teachers and students. It’s where everyone signs in.</p>
         </div>
-        <CopyButton text={`https://${address}`} label="Copy address" className="btn btn--primary" />
+        <div className="row-actions">
+          <a href={loginUrl} target="_blank" rel="noopener noreferrer" className="btn btn--light">Open sign-in page</a>
+          <CopyButton text={loginUrl} label="Copy sign-in link" className="btn btn--primary" />
+        </div>
       </section>
 
-      <section className="stats" aria-label="School totals">
-        {stats.map((s) => (
-          <div key={s.label} className="stat">
-            <span className="stat__label">{s.label}</span>
-            <span className="stat__value">{s.value}</span>
-            <span className="stat__note">{s.note}</span>
+      {error ? (
+        <section className="panel">
+          <div className="empty">
+            <p className="field__error" role="alert">{error}</p>
+            <button className="btn btn--ghost" onClick={load}>Try again</button>
           </div>
-        ))}
-      </section>
+        </section>
+      ) : (
+        <section className="stats" aria-label="School totals">
+          {CARDS.map(([key, label]) => (
+            <div key={key} className="stat">
+              <span className="stat__label">{label}</span>
+              <span className="stat__value">{stats ? stats[key] : '…'}</span>
+              {key === 'teachers' && stats?.teachersPending > 0 && (
+                <span className="stat__note stat__note--warn">{stats.teachersPending} pending</span>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
 
       <section className="actions">
         <Link to="/admin/classes" className="btn btn--primary">Create class</Link>
         <Link to="/admin/teachers" className="btn btn--ghost">Add teacher</Link>
       </section>
-
-      <div className="columns">
-        <section className="panel">
-          <h2>Classes</h2>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Class</th><th>Teachers</th><th>Students</th><th>Courses</th><th>Join code</th></tr></thead>
-              <tbody>
-                {classes.map((c) => (
-                  <tr key={c.id}>
-                    <td><strong>{c.name}</strong></td><td>{c.teachers}</td><td>{c.students}</td><td>{c.courses}</td>
-                    <td><code className="code">{c.code}</code></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-        <section className="panel">
-          <h2>Recent activity</h2>
-          <ul className="activity">
-            {activity.map((a) => (<li key={a.id}><p>{a.text}</p><time>{a.time}</time></li>))}
-          </ul>
-        </section>
-      </div>
     </AdminLayout>
   )
 }

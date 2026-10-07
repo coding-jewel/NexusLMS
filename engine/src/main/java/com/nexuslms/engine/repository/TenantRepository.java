@@ -13,6 +13,12 @@ public interface TenantRepository extends MongoRepository<Tenant, String> {
     @Query("{ 'subdomain': ?0 }")
     Optional<Tenant> findBySubdomain(String subdomain);
 
+    @Query("{ 'teacherCode': ?0 }")
+    Optional<Tenant> findByTeacherCode(String teacherCode);
+
     @Query(value = "{ 'subdomain': ?0 }", exists = true)
     boolean existsBySubdomain(String subdomain);
+
+    @Query(value = "{ 'teacherCode': ?0 }", exists = true)
+    boolean existsByTeacherCode(String teacherCode);
 }

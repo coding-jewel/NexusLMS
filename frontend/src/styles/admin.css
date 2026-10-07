@@ -24,6 +24,7 @@
 .stat__label { font-weight: 600; color: var(--slate-500); font-size: .9rem; }
 .stat__value { font: 800 2.3rem var(--font-display); color: var(--slate-900); letter-spacing: -0.03em; }
 .stat__note { font-size: .82rem; color: var(--teal-700); }
+.stat__note--warn { color: var(--warn); }
 .actions { display: flex; gap: .7rem; flex-wrap: wrap; }
 
 .columns { display: grid; grid-template-columns: 1.7fr 1fr; gap: 1.2rem; align-items: start; }
@@ -113,3 +114,12 @@ td strong { color: var(--slate-900); }
 .btn.btn--danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
 .btn.btn--danger-solid:hover { filter: brightness(.92); }
 .confirm-actions { display: flex; gap: .6rem; justify-content: flex-end; }
+
+/* grading page states */
+.badge--warn { background: var(--danger-bg); color: var(--danger); }
+.weights__input input.is-invalid { border-color: var(--danger); }
+
+/* courses filters */
+.filters { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.filters select { padding: .5rem .7rem; border: 1px solid var(--slate-200); border-radius: var(--radius-md); background: #fff; color: var(--slate-900); font: inherit; }
+.filters__count { margin-left: auto; font-size: .85rem; color: var(--slate-500); }

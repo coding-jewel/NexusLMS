@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import Logo from '../components/Logo'
 import PasswordField from '../components/PasswordField'
 import SchoolAddressRequired from '../components/SchoolAddressRequired'
 import { useTenant } from '../tenant/TenantContext'
 import { useAuth } from '../auth/AuthContext'
+import { rootUrl } from '../utils/tenant'
 import { homeFor } from '../utils/roles'
 import '../styles/auth.css'
 
@@ -14,21 +15,6 @@ function destination(next, role) {
   return next && next.startsWith(home) && !next.startsWith('//') ? next : home
 }
 
-function Notice({ title, text }) {
-  return (
-    <div className="auth">
-      <main className="auth__main" style={{ gridColumn: '1 / -1' }}>
-        <div className="auth__card">
-          <Logo />
-          <h2>{title}</h2>
-          <p className="auth__sub">{text}</p>
-          <Link to="/" className="btn btn--ghost btn--block">Back to home</Link>
-        </div>
-      </main>
-    </div>
-  )
-}
-
 export default function Login() {
   const [params] = useSearchParams()
   const { status, tenant, subdomain } = useTenant()
@@ -36,15 +22,33 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [pending, setPending] = useState('')
   const [busy, setBusy] = useState(false)
   const expired = params.get('expired') === '1'
+  // Set by the redirect below when we were bounced here from a bad subdomain.
+  const addressError = params.get('addressError') || ''
 
-  if (status === 'none') return <SchoolAddressRequired />
+  // A school address that doesn't exist or a server we can't reach should not trap someone
+  // on a broken subdomain. Send them back to the main site's login page with a reason.
+  useEffect(() => {
+    if (status !== 'missing' && status !== 'error') return
+    const message = status === 'missing'
+      ? `We couldn’t find “${subdomain}”. Check the address and try again.`
+      : 'We couldn’t reach the server. Check your connection and try again.'
+    window.location.replace(`${rootUrl('/login')}?addressError=${encodeURIComponent(message)}`)
+  }, [status, subdomain])
+
+  // No school subdomain: ask which one they belong to. Any bounce message from above rides along.
+  if (status === 'none') return <SchoolAddressRequired error={addressError} />
+
   if (status === 'loading' || loading) {
     return <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: 'var(--slate-500)' }}>Loading…</div>
   }
-  if (status === 'missing') return <Notice title="We can’t find that school" text={`There is no school at ${subdomain}.nexuslms.com. Check the address and try again.`} />
-  if (status === 'error') return <Notice title="Can’t reach the server" text="Please check your connection and try again in a moment." />
+
+  // The useEffect above is already navigating us away; show a plain "Redirecting…" for the moment.
+  if (status === 'missing' || status === 'error') {
+    return <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: 'var(--slate-500)' }}>Redirecting…</div>
+  }
 
   // Signed in (or just signed in): go to their dashboard, or back to the page they were on.
   if (user) return <Navigate to={destination(params.get('next'), user.role)} replace />
@@ -52,11 +56,17 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setPending('')
     setBusy(true)
     try {
       await login(subdomain, email, password) // on success this page re-renders and redirects
     } catch (err) {
-      setError(err.message)
+      // The server tells us this is a pending teacher and not a wrong password by sending code = PENDING_APPROVAL.
+      if (err.code === 'PENDING_APPROVAL') {
+        setPending(err.message)
+      } else {
+        setError(err.message)
+      }
       setBusy(false)
     }
   }
@@ -69,7 +79,6 @@ export default function Login() {
           <p className="auth__school">{subdomain}.nexuslms.com</p>
           <h1>Welcome to {tenant.name}.</h1>
         </div>
-        <p>Teachers and students: use the email your school gave you.</p>
       </aside>
 
       <main className="auth__main">
@@ -79,6 +88,10 @@ export default function Login() {
 
           {expired && (
             <div className="banner" role="status">Your session expired. Sign in again to pick up where you left off.</div>
+          )}
+
+          {pending && (
+            <div className="banner" role="status">{pending}</div>
           )}
 
           <label className="field">

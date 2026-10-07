@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 // Development only: prints the email in the backend console instead of sending it.
-// Active unless app.mail.enabled=true (which comes in step 4c).
+// Active unless app.mail.enabled=true.
 @Service
 @ConditionalOnProperty(name = "app.mail.enabled", havingValue = "false", matchIfMissing = true)
 public class ConsoleEmailService implements EmailService {

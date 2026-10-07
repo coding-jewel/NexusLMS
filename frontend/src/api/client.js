@@ -6,9 +6,10 @@ export const setToken = (token) => localStorage.setItem(TOKEN_KEY, token)
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY)
 
 export class ApiError extends Error {
-  constructor(status, message) {
+  constructor(status, message, code) {
     super(message)
     this.status = status
+    this.code = code
   }
 }
 
@@ -39,7 +40,8 @@ async function request(method, path, body, { auth = true } = {}) {
   }
 
   if (!res.ok) {
-    throw new ApiError(res.status, data?.error || 'Something went wrong. Please try again.')
+    // data.code carries a machine-readable reason (for example PENDING_APPROVAL) when the server sends one.
+    throw new ApiError(res.status, data?.error || 'Something went wrong. Please try again.', data?.code)
   }
   return data
 }
@@ -47,5 +49,6 @@ async function request(method, path, body, { auth = true } = {}) {
 export const api = {
   get: (path, options) => request('GET', path, undefined, options),
   post: (path, body, options) => request('POST', path, body, options),
+  put: (path, body, options) => request('PUT', path, body, options),
   delete: (path, options) => request('DELETE', path, undefined, options),
 }

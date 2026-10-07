@@ -18,4 +18,7 @@ public interface AssignmentRepository extends MongoRepository<Assignment, String
 
     @Query("{ 'teacherId': ?0 }")
     List<Assignment> findAllByTeacherId(String teacherId);
+
+    @Query(value = "{ 'courseId': ?0 }", exists = true)
+    boolean existsByCourseId(String courseId);
 }

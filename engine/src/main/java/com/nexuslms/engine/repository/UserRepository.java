@@ -29,6 +29,18 @@ public interface UserRepository extends MongoRepository<User, String> {
     @Query("{ 'tenantId': ?0, 'role': ?1 }")
     List<User> findAllByTenantIdAndRole(String tenantId, String role);
 
-    @Query(value = "{ 'classId': ?0 }", exists = true)
+    @Query(value = "{ 'classIds': ?0 }", exists = true)
     boolean existsByClassId(String classId);
+
+    // how many people of one role a school has
+    @Query(value = "{ 'tenantId': ?0, 'role': ?1 }", count = true)
+    long countByTenantIdAndRole(String tenantId, String role);
+
+    // how many people of one role a school has who have been approved (used for the teachers stat)
+    @Query(value = "{ 'tenantId': ?0, 'role': ?1, 'approved': true }", count = true)
+    long countByTenantIdAndRoleAndApproved(String tenantId, String role);
+
+    // how many people of one role a school has who are still waiting (used for the pending note)
+    @Query(value = "{ 'tenantId': ?0, 'role': ?1, 'approved': false }", count = true)
+    long countByTenantIdAndRoleAndNotApproved(String tenantId, String role);
 }

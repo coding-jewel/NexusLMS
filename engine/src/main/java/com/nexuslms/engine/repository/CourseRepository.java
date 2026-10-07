@@ -22,4 +22,10 @@ public interface CourseRepository extends MongoRepository<Course, String> {
 
     @Query(value = "{ 'title': ?0, 'classId': ?1 }", exists = true)
     boolean existsByTitleAndClassId(String title, String classId);
+
+    @Query(value = "{ 'teacherId': ?0 }", exists = true)
+    boolean existsByTeacherId(String teacherId);
+
+    @Query(value = "{ 'tenantId': ?0 }", count = true)
+    long countByTenantId(String tenantId);
 }

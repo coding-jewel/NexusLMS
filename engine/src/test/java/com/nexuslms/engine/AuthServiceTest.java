@@ -2,6 +2,7 @@ package com.nexuslms.engine;
 
 import com.nexuslms.engine.dto.AuthResponse;
 import com.nexuslms.engine.dto.LoginRequest;
+import com.nexuslms.engine.exception.InvalidRequestException;
 import com.nexuslms.engine.models.Role;
 import com.nexuslms.engine.models.Tenant;
 import com.nexuslms.engine.models.User;
@@ -20,7 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -50,6 +51,14 @@ class AuthServiceTest {
         u.setPassword("hash");
         u.setRole(Role.ADMIN);
         u.setActive(active);
+        return u;
+    }
+
+    private User waitingTeacher() {
+        User u = user(true);
+        u.setName("Mr Bello");
+        u.setRole(Role.TEACHER);
+        u.setApproved(false);
         return u;
     }
 
@@ -102,5 +111,33 @@ class AuthServiceTest {
 
         assertThrows(BadCredentialsException.class, () -> service.me(null));
         assertThrows(BadCredentialsException.class, () -> service.me("gone"));
+    }
+
+    @Test
+    void aTeacherWhoIsStillWaiting_IsToldSoOnlyAfterTheRightPassword() {
+        when(tenantRepository.findBySubdomain("lincoln")).thenReturn(Optional.of(tenant()));
+        when(userRepository.findByEmailAndTenantId("a@b.com", "t1")).thenReturn(Optional.of(waitingTeacher()));
+        when(passwordEncoder.matches("pw", "hash")).thenReturn(true);
+
+        InvalidRequestException e = assertThrows(InvalidRequestException.class, () -> service.login(request));
+
+        assertTrue(e.getMessage().contains("waiting for approval"));
+        verify(jwtService, never()).generateToken(any(), any(), any(), any());
+    }
+
+    @Test
+    void aWaitingTeacherWithTheWrongPassword_GetsTheSameVagueMessageAsEveryoneElse() {
+        when(tenantRepository.findBySubdomain("lincoln")).thenReturn(Optional.of(tenant()));
+        when(userRepository.findByEmailAndTenantId("a@b.com", "t1")).thenReturn(Optional.of(waitingTeacher()));
+        when(passwordEncoder.matches("pw", "hash")).thenReturn(false);
+
+        assertEquals("Invalid email or password", failureMessage());
+    }
+
+    @Test
+    void meRejectsAUserWhoIsNotApproved() {
+        when(userRepository.findById("u1")).thenReturn(Optional.of(waitingTeacher()));
+
+        assertThrows(BadCredentialsException.class, () -> service.me("u1"));
     }
 }

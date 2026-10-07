@@ -21,3 +21,11 @@ export function schoolUrl(subdomain, path = '/') {
   const root = hostname.endsWith('localhost') ? 'localhost' : ROOT
   return `${protocol}//${subdomain}.${root}${port ? `:${port}` : ''}${path}`
 }
+
+// The main site's own address, with no school subdomain in front of it.
+// Used when we need to get off a bad subdomain and back to the root.
+export function rootUrl(path = '/') {
+  const { protocol, hostname, port } = window.location
+  const root = hostname.endsWith('localhost') ? 'localhost' : ROOT
+  return `${protocol}//${root}${port ? `:${port}` : ''}${path}`
+}

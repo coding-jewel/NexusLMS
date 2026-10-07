@@ -1,15 +1,18 @@
 package com.nexuslms.engine.controller;
 
-import com.nexuslms.engine.models.User;
+import com.nexuslms.engine.dto.UserResponse;
+import com.nexuslms.engine.security.AuthUser;
 import com.nexuslms.engine.service.UserService;
-import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+// The admin's view of their own school's people. The school always comes from the signed-in user.
+// There is no "create user" endpoint: admins register with their school, teachers and students
+// join with a code, and each of those flows creates the user on the server.
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -19,37 +22,40 @@ public class UserController {
         this.userService = userService;
     }
 
-    @PostMapping
-    public ResponseEntity<User> createUser(@Valid @RequestBody User user) {
-        User created = userService.createUser(user);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    // Optional filters: ?role=TEACHER or ?role=STUDENT, and ?classId=...
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping
+    public List<UserResponse> list(@RequestParam(required = false) String role,
+                                   @RequestParam(required = false) String classId,
+                                   @AuthenticationPrincipal AuthUser auth) {
+        return userService.list(auth.tenantId(), role, classId).stream().map(UserResponse::from).toList();
     }
 
-    @GetMapping("/tenant/{tenantId}")
-    public ResponseEntity<List<User>> getAllUsersByTenant(@PathVariable String tenantId) {
-        return ResponseEntity.ok(userService.getAllUsersByTenant(tenantId));
-    }
-
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable String id) {
-        return userService.getUserById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public UserResponse get(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        return UserResponse.from(userService.get(auth.tenantId(), id));
     }
 
-    @GetMapping("/tenant/{tenantId}/role/{role}")
-    public ResponseEntity<List<User>> getUsersByRole(
-            @PathVariable String tenantId,
-            @PathVariable String role
-    ) {
-        return ResponseEntity.ok(userService.getUsersByRole(tenantId, role));
+    // A teacher who joined with the school's code is approved here, and can then sign in.
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{id}/approve")
+    public UserResponse approve(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        return UserResponse.from(userService.approve(auth.tenantId(), id));
+    }
+
+    // Declining removes the request. The person can apply again.
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{id}/decline")
+    public ResponseEntity<Void> decline(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        userService.decline(auth.tenantId(), id);
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
-        userService.deleteUser(id);
+    public ResponseEntity<Void> delete(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        userService.remove(auth.tenantId(), id);
         return ResponseEntity.noContent().build();
     }
-
 }

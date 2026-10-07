@@ -1,6 +1,10 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { api, clearToken, getToken, setToken } from '../api/client'
 
+if (window.location.pathname === '/login' && new URLSearchParams(window.location.search).get('fresh') === '1') {
+  clearToken()
+}
+
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
@@ -18,10 +22,15 @@ export function AuthProvider({ children }) {
     return () => { current = false }
   }, [])
 
+  // Used when the server has just handed us a token (for example after a student joins by code).
+  const setSession = ({ token, user: who }) => {
+    setToken(token)
+    setUser(who)
+  }
+
   const login = async (subdomain, email, password) => {
     const data = await api.post('/auth/login', { subdomain, email, password }, { auth: false })
-    setToken(data.token)
-    setUser(data.user)
+    setSession(data)
     return data.user
   }
 
@@ -30,7 +39,7 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
-  return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, login, logout, setSession }}>{children}</AuthContext.Provider>
 }
 
 export const useAuth = () => useContext(AuthContext)
