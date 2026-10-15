@@ -19,8 +19,11 @@ public class Grade {
     @NotBlank(message = "Student ID is required")
     private String studentId;
 
-    @NotBlank(message = "Course ID is required")
+    // Set for ASSIGNMENT and TEST grades; null for EXAM grades.
     private String courseId;
+
+    // Set for EXAM grades; null for everything else.
+    private String classId;
 
     private String assignmentId;
 
@@ -74,6 +77,14 @@ public class Grade {
 
     public void setCourseId(String courseId) {
         this.courseId = courseId;
+    }
+
+    public String getClassId() {
+        return classId;
+    }
+
+    public void setClassId(String classId) {
+        this.classId = classId;
     }
 
     public String getAssignmentId() {

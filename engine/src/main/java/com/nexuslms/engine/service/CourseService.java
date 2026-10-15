@@ -1,7 +1,9 @@
 package com.nexuslms.engine.service;
 
+import com.nexuslms.engine.dto.CoursePeopleResponse;
 import com.nexuslms.engine.dto.CourseRequest;
 import com.nexuslms.engine.dto.CourseResponse;
+import com.nexuslms.engine.dto.UserResponse;
 import com.nexuslms.engine.exception.DuplicateResourceException;
 import com.nexuslms.engine.exception.InvalidRequestException;
 import com.nexuslms.engine.exception.NotFoundException;
@@ -23,11 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-// Every method takes the school and the caller from the signed-in user, never from the request.
-// A course the caller isn't allowed to see looks exactly like a course that doesn't exist.
-//   admin:   every course in their school (read only)
-//   teacher: their own courses
-//   student: published courses of the classes they belong to
 @Service
 public class CourseService {
 
@@ -49,11 +46,17 @@ public class CourseService {
         this.quizRepository = quizRepository;
     }
 
-    /** A teacher creates a course in one of their school's classes. It starts unpublished. */
     public CourseResponse create(AuthUser auth, CourseRequest request) {
         SchoolClass schoolClass = classRepository.findById(request.classId())
                 .filter(c -> auth.tenantId().equals(c.getTenantId()))
                 .orElseThrow(() -> new NotFoundException("Class not found"));
+        boolean assigned = userRepository.findById(auth.userId())
+                .filter(u -> auth.tenantId().equals(u.getTenantId()))
+                .map(u -> u.getClassIds().contains(schoolClass.getId()))
+                .orElse(false);
+        if (!assigned) {
+            throw new InvalidRequestException("You aren't assigned to this class. Ask your admin to add you.");
+        }
         String title = request.title().trim();
         if (courseRepository.existsByTitleAndClassId(title, schoolClass.getId())) {
             throw new DuplicateResourceException("A course with this title already exists in this class");
@@ -90,21 +93,50 @@ public class CourseService {
         return respond(auth.tenantId(), List.of(courseRepository.save(course))).get(0);
     }
 
+    public CourseResponse unpublish(AuthUser auth, String id) {
+        Course course = owned(auth, id);
+        course.setPublished(false);
+        return respond(auth.tenantId(), List.of(courseRepository.save(course))).get(0);
+    }
+
     public void delete(AuthUser auth, String id) {
         Course course = owned(auth, id);
-        if (assignmentRepository.existsByCourseId(course.getId()) || quizRepository.existsByCourseId(course.getId())) {
+        if (assignmentRepository.existsByCourseId(course.getId()) || quizRepository.existsQuizByCourseId(course.getId())) {
             throw new InvalidRequestException("This course still has assignments or quizzes. Delete them first.");
         }
         courseRepository.deleteById(course.getId());
     }
 
-    // --- who may see or change what ---
+    public CourseResponse attachFile(AuthUser auth, String id, String fileUrl) {
+        Course course = owned(auth, id);
+        course.getAttachmentUrls().add(fileUrl);
+        return respond(auth.tenantId(), List.of(courseRepository.save(course))).get(0);
+    }
+
+    public CourseResponse detachFile(AuthUser auth, String id, String fileUrl) {
+        Course course = owned(auth, id);
+        course.getAttachmentUrls().remove(fileUrl);
+        return respond(auth.tenantId(), List.of(courseRepository.save(course))).get(0);
+    }
+
+    public CoursePeopleResponse people(AuthUser auth, String id) {
+        Course course = visible(auth, id);
+        User teacher = userRepository.findById(course.getTeacherId())
+                .orElseThrow(() -> new NotFoundException(NOT_FOUND));
+        List<UserResponse> students = userRepository.findStudentsInClass(course.getClassId())
+                .stream()
+                .sorted(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER))
+                .map(UserResponse::from)
+                .toList();
+        return new CoursePeopleResponse(UserResponse.from(teacher), students);
+    }
+
+    // --- helpers ---
 
     private boolean sameSchool(AuthUser auth, Course course) {
         return auth.tenantId().equals(course.getTenantId());
     }
 
-    // A student sees the published courses of every class they belong to.
     private List<Course> studentCourses(AuthUser auth) {
         List<Course> courses = new ArrayList<>();
         for (String classId : studentClassIds(auth)) {
@@ -135,14 +167,12 @@ public class CourseService {
         return course;
     }
 
-    // Changing a course is for the teacher who owns it.
-    private Course owned(AuthUser auth, String id) {
+    public Course owned(AuthUser auth, String id) {
         return courseRepository.findById(id)
                 .filter(c -> sameSchool(auth, c) && auth.userId().equals(c.getTeacherId()))
                 .orElseThrow(() -> new NotFoundException(NOT_FOUND));
     }
 
-    // Adds the class name and teacher name that the pages show next to each course.
     private List<CourseResponse> respond(String tenantId, List<Course> courses) {
         Map<String, String> classNames = new HashMap<>();
         for (SchoolClass c : classRepository.findAllByTenantId(tenantId)) {
@@ -153,7 +183,11 @@ public class CourseService {
             teacherNames.put(u.getId(), u.getName());
         }
         return courses.stream()
-                .map(c -> CourseResponse.from(c, classNames.get(c.getClassId()), teacherNames.get(c.getTeacherId())))
+                .map(c -> CourseResponse.from(c,
+                        classNames.get(c.getClassId()),
+                        teacherNames.get(c.getTeacherId()),
+                        assignmentRepository.countByCourseId(c.getId()),
+                        quizRepository.countQuizzesByCourseId(c.getId())))
                 .toList();
     }
 }

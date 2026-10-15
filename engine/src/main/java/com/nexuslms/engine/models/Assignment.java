@@ -32,6 +32,10 @@ public class Assignment {
     @NotNull(message = "Due date is required")
     private LocalDateTime dueDate;
 
+    // What this assignment is out of. Defaults to 100 for older documents
+    // that were created before this field existed.
+    private int totalMarks = 100;
+
     private List<String> attachmentUrls = new ArrayList<>();
 
     @CreatedDate
@@ -42,75 +46,35 @@ public class Assignment {
 
     //Getters and Setters
 
-    public String getId() {
-        return id;
-    }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
 
-    public String getTenantId() {
-        return tenantId;
-    }
+    public String getCourseId() { return courseId; }
+    public void setCourseId(String courseId) { this.courseId = courseId; }
 
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
-    }
+    public String getTeacherId() { return teacherId; }
+    public void setTeacherId(String teacherId) { this.teacherId = teacherId; }
 
-    public String getCourseId() {
-        return courseId;
-    }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
 
-    public void setCourseId(String courseId) {
-        this.courseId = courseId;
-    }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    public String getTeacherId() {
-        return teacherId;
-    }
+    public LocalDateTime getDueDate() { return dueDate; }
+    public void setDueDate(LocalDateTime dueDate) { this.dueDate = dueDate; }
 
-    public void setTeacherId(String teacherId) {
-        this.teacherId = teacherId;
-    }
+    public int getTotalMarks() { return totalMarks <= 0 ? 100 : totalMarks; }
+    public void setTotalMarks(int totalMarks) { this.totalMarks = totalMarks; }
 
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public LocalDateTime getDueDate() {
-        return dueDate;
-    }
-
-    public void setDueDate(LocalDateTime dueDate) {
-        this.dueDate = dueDate;
-    }
-
-    public List<String> getAttachmentUrls() {
-        return attachmentUrls;
-    }
-
+    public List<String> getAttachmentUrls() { return attachmentUrls; }
     public void setAttachmentUrls(List<String> attachmentUrls) {
-        this.attachmentUrls = attachmentUrls;
+        this.attachmentUrls = attachmentUrls == null ? new ArrayList<>() : attachmentUrls;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

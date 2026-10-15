@@ -1,12 +1,13 @@
 package com.nexuslms.engine.models;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Document("courses")
 public class Course {
@@ -27,8 +28,10 @@ public class Course {
 
     private String description;
 
-    @NotNull(message = "Published status is required")
     private boolean published = false;
+
+    // Notes and materials the teacher has uploaded for this course.
+    private List<String> attachmentUrls = new ArrayList<>();
 
     @CreatedDate
     private LocalDateTime createdAt;
@@ -92,6 +95,14 @@ public class Course {
 
     public void setPublished(boolean published) {
         this.published = published;
+    }
+
+    public List<String> getAttachmentUrls() {
+        return attachmentUrls;
+    }
+
+    public void setAttachmentUrls(List<String> attachmentUrls) {
+        this.attachmentUrls = attachmentUrls == null ? new ArrayList<>() : attachmentUrls;
     }
 
     public LocalDateTime getCreatedAt() {

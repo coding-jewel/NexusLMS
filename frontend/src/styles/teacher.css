@@ -6,6 +6,7 @@
 .course-card__top { padding: 1.3rem 1.3rem 1.6rem; color: #fff; display: grid; gap: .25rem; min-height: 110px; align-content: end; }
 .course-card__top h2 { color: #fff; font-size: 1.3rem; }
 .course-card__top span { font-size: .9rem; opacity: .9; }
+.course-card__link { display: block; }
 .tone-0 { background: var(--indigo-600); }
 .tone-1 { background: var(--teal-700); }
 .tone-2 { background: #7c3aed; }
@@ -40,6 +41,8 @@
 .q-card__head .link-btn { margin-left: auto; }
 .link-btn { background: none; border: 0; font: 600 .88rem var(--font-body); color: var(--indigo-600); cursor: pointer; padding: 0; width: fit-content; }
 .link-btn:disabled { color: var(--slate-400); cursor: not-allowed; }
+.link-btn--strong { font: 600 .95rem var(--font-body); color: var(--slate-900); text-align: left; }
+.link-btn--strong:hover { color: var(--indigo-600); }
 .options { border: 0; padding: 0; display: grid; gap: .6rem; }
 .options legend { font-size: .92rem; font-weight: 600; color: var(--slate-900); margin-bottom: .4rem; }
 .option { display: flex; align-items: center; gap: .7rem; }

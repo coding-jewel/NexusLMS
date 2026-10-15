@@ -8,7 +8,6 @@ import com.nexuslms.engine.models.Tenant;
 import com.nexuslms.engine.repository.TenantRepository;
 import org.springframework.stereotype.Service;
 
-// The school always comes from the signed-in user, never from the request.
 @Service
 public class GradingService {
     private final TenantRepository tenantRepository;
@@ -23,12 +22,12 @@ public class GradingService {
     }
 
     public GradingWeights save(String tenantId, GradingWeightsRequest request) {
-        String problem = GradingRules.problem(request.assignments(), request.tests(), request.exams());
+        String problem = GradingRules.problem(request.tests(), request.exams());
         if (problem != null) {
             throw new InvalidRequestException(problem);
         }
         Tenant tenant = tenant(tenantId);
-        GradingWeights weights = new GradingWeights(request.assignments(), request.tests(), request.exams());
+        GradingWeights weights = new GradingWeights(request.tests(), request.exams());
         tenant.setGradingWeights(weights);
         tenantRepository.save(tenant);
         return weights;

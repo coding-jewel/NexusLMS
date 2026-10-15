@@ -11,21 +11,44 @@ import java.util.Optional;
 @Repository
 public interface QuizRepository extends MongoRepository<Quiz, String> {
 
-    @Query("{ 'courseId': ?0 }")
-    List<Quiz> findAllByCourseId(String courseId);
+    // --- topic-level quizzes ---
 
-    @Query("{ 'tenantId': ?0 }")
-    List<Quiz> findAllByTenantId(String tenantId);
+    @Query("{ 'courseId': ?0, 'category': 'QUIZ' }")
+    List<Quiz> findAllQuizzesByCourseId(String courseId);
 
-    @Query("{ 'teacherId': ?0 }")
-    List<Quiz> findAllByTeacherId(String teacherId);
+    @Query("{ 'courseId': ?0, 'category': 'QUIZ', 'published': true }")
+    List<Quiz> findPublishedQuizzesByCourseId(String courseId);
 
-    @Query("{ 'courseId': ?0, 'published': true }")
-    List<Quiz> findAllPublishedByCourseId(String courseId);
+    @Query(value = "{ 'courseId': ?0, 'category': 'QUIZ' }", count = true)
+    long countQuizzesByCourseId(String courseId);
+
+    @Query(value = "{ 'courseId': ?0, 'category': 'QUIZ' }", exists = true)
+    boolean existsQuizByCourseId(String courseId);
+
+    // --- class-level tests and exams ---
+
+    @Query("{ 'classId': ?0, 'category': ?1 }")
+    List<Quiz> findAllByClassIdAndCategory(String classId, String category);
+
+    @Query("{ 'classId': ?0, 'category': ?1, 'published': true }")
+    List<Quiz> findPublishedByClassIdAndCategory(String classId, String category);
+
+    @Query(value = "{ 'classId': ?0, 'category': ?1 }", count = true)
+    long countByClassIdAndCategory(String classId, String category);
+
+    // --- teacher views ---
+
+    @Query("{ 'teacherId': ?0, 'category': ?1 }")
+    List<Quiz> findAllByTeacherIdAndCategory(String teacherId, String category);
+
+    @Query("{ 'teacherId': ?0, 'category': { $in: ['TEST', 'EXAM'] } }")
+    List<Quiz> findAllTestsAndExamsByTeacherId(String teacherId);
+
+    // --- tenant-wide ---
+
+    @Query("{ 'tenantId': ?0, 'category': ?1 }")
+    List<Quiz> findAllByTenantIdAndCategory(String tenantId, String category);
 
     @Query("{ '_id': ?0 }")
     Optional<Quiz> findById(String id);
-
-    @Query(value = "{ 'courseId': ?0 }", exists = true)
-    boolean existsByCourseId(String courseId);
 }

@@ -25,4 +25,10 @@ public interface SubmissionRepository extends MongoRepository<Submission, String
 
     @Query("{ 'assignmentId': ?0, 'graded': false }")
     List<Submission> findAllUngradedByAssignmentId(String assignmentId);
+
+    @Query(value = "{ 'assignmentId': ?0, 'graded': false }", count = true)
+    long countByAssignmentIdAndGradedFalse(String assignmentId);
+
+    @Query(value = "{ 'assignmentId': ?0 }", count = true)
+    long countByAssignmentId(String assignmentId);
 }

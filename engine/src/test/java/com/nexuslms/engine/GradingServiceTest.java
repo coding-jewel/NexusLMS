@@ -40,48 +40,38 @@ class GradingServiceTest {
     @Test
     void aSchoolWithNoSavedWeightsGetsTheDefaults() {
         when(tenantRepository.findById("t1")).thenReturn(Optional.of(tenant(null)));
-
-        assertEquals(new GradingWeights(20, 20, 60), service.get("t1"));
+        assertEquals(new GradingWeights(40, 60), service.get("t1"));
     }
 
     @Test
     void returnsTheSavedWeights() {
-        when(tenantRepository.findById("t1")).thenReturn(Optional.of(tenant(new GradingWeights(10, 30, 60))));
-
-        assertEquals(new GradingWeights(10, 30, 60), service.get("t1"));
+        when(tenantRepository.findById("t1")).thenReturn(Optional.of(tenant(new GradingWeights(30, 70))));
+        assertEquals(new GradingWeights(30, 70), service.get("t1"));
     }
 
     @Test
     void savesValidWeightsOnTheCallersSchool() {
         when(tenantRepository.findById("t1")).thenReturn(Optional.of(tenant(null)));
 
-        GradingWeights saved = service.save("t1", new GradingWeightsRequest(10, 30, 60));
+        GradingWeights saved = service.save("t1", new GradingWeightsRequest(30, 70));
 
         ArgumentCaptor<Tenant> captor = ArgumentCaptor.forClass(Tenant.class);
         verify(tenantRepository).save(captor.capture());
-        assertEquals(new GradingWeights(10, 30, 60), captor.getValue().getGradingWeights());
-        assertEquals(new GradingWeights(10, 30, 60), saved);
-    }
-
-    @Test
-    void assignmentsCanBeSavedAsZero() {
-        when(tenantRepository.findById("t1")).thenReturn(Optional.of(tenant(null)));
-
-        assertEquals(new GradingWeights(0, 40, 60), service.save("t1", new GradingWeightsRequest(0, 40, 60)));
+        assertEquals(new GradingWeights(30, 70), captor.getValue().getGradingWeights());
+        assertEquals(new GradingWeights(30, 70), saved);
     }
 
     @Test
     void refusesInvalidWeightsAndSavesNothing() {
-        assertThrows(InvalidRequestException.class, () -> service.save("t1", new GradingWeightsRequest(20, 10, 70)));
-        assertThrows(InvalidRequestException.class, () -> service.save("t1", new GradingWeightsRequest(40, 20, 30)));
-        assertThrows(InvalidRequestException.class, () -> service.save("t1", new GradingWeightsRequest(20, 20, 50)));
+        assertThrows(InvalidRequestException.class, () -> service.save("t1", new GradingWeightsRequest(10, 90)));
+        assertThrows(InvalidRequestException.class, () -> service.save("t1", new GradingWeightsRequest(60, 30)));
+        assertThrows(InvalidRequestException.class, () -> service.save("t1", new GradingWeightsRequest(20, 40)));
         verify(tenantRepository, never()).save(any());
     }
 
     @Test
     void anUnknownSchoolIsNotFound() {
         when(tenantRepository.findById("nope")).thenReturn(Optional.empty());
-
         assertThrows(NotFoundException.class, () -> service.get("nope"));
     }
 }

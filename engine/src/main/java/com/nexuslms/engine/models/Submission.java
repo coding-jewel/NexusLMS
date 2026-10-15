@@ -33,6 +33,9 @@ public class Submission {
 
     private boolean graded = false;
 
+    // Set at submit time by comparing to the assignment's due date.
+    private boolean late = false;
+
     @CreatedDate
     private LocalDateTime submittedAt;
 
@@ -41,83 +44,38 @@ public class Submission {
 
     //Getters and Setters
 
-    public String getId() {
-        return id;
-    }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
 
-    public String getTenantId() {
-        return tenantId;
-    }
+    public String getAssignmentId() { return assignmentId; }
+    public void setAssignmentId(String assignmentId) { this.assignmentId = assignmentId; }
 
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
-    }
+    public String getStudentId() { return studentId; }
+    public void setStudentId(String studentId) { this.studentId = studentId; }
 
-    public String getAssignmentId() {
-        return assignmentId;
-    }
+    public String getText() { return text; }
+    public void setText(String text) { this.text = text; }
 
-    public void setAssignmentId(String assignmentId) {
-        this.assignmentId = assignmentId;
-    }
-
-    public String getStudentId() {
-        return studentId;
-    }
-
-    public void setStudentId(String studentId) {
-        this.studentId = studentId;
-    }
-
-    public String getText() {
-        return text;
-    }
-
-    public void setText(String text) {
-        this.text = text;
-    }
-
-    public List<String> getFileUrls() {
-        return fileUrls;
-    }
-
+    public List<String> getFileUrls() { return fileUrls; }
     public void setFileUrls(List<String> fileUrls) {
-        this.fileUrls = fileUrls;
+        this.fileUrls = fileUrls == null ? new ArrayList<>() : fileUrls;
     }
 
-    public Integer getGrade() {
-        return grade;
-    }
+    public Integer getGrade() { return grade; }
+    public void setGrade(Integer grade) { this.grade = grade; }
 
-    public void setGrade(Integer grade) {
-        this.grade = grade;
-    }
+    public String getFeedback() { return feedback; }
+    public void setFeedback(String feedback) { this.feedback = feedback; }
 
-    public String getFeedback() {
-        return feedback;
-    }
+    public boolean isGraded() { return graded; }
+    public void setGraded(boolean graded) { this.graded = graded; }
 
-    public void setFeedback(String feedback) {
-        this.feedback = feedback;
-    }
+    public boolean isLate() { return late; }
+    public void setLate(boolean late) { this.late = late; }
 
-    public boolean isGraded() {
-        return graded;
-    }
-
-    public void setGraded(boolean graded) {
-        this.graded = graded;
-    }
-
-    public LocalDateTime getSubmittedAt() {
-        return submittedAt;
-    }
-
-    public void setSubmittedAt(LocalDateTime submittedAt) {
-        this.submittedAt = submittedAt;
-    }
+    public LocalDateTime getSubmittedAt() { return submittedAt; }
+    public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
 }

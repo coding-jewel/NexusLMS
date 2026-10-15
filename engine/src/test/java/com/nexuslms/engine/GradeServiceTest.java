@@ -10,21 +10,22 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class GradeServiceTest {
 
-    @Mock
-    private GradeRepository gradeRepository;
-
-    @InjectMocks
-    private GradeService gradeService;
+    @Mock private GradeRepository gradeRepository;
+    @InjectMocks private GradeService gradeService;
 
     private Grade grade;
 
@@ -55,33 +56,68 @@ public class GradeServiceTest {
     }
 
     @Test
-    void createGradeFromSubmission_Success() {
-        when(gradeRepository.save(any(Grade.class))).thenReturn(grade);
+    void upsertSubmissionGrade_WritesAnAssignmentGrade() {
+        when(gradeRepository.findByAssignmentIdAndStudentId("assignment1", "student1"))
+                .thenReturn(Optional.empty());
+        when(gradeRepository.save(any(Grade.class))).thenAnswer(i -> i.getArgument(0));
 
-        Grade result = gradeService.createGradeFromSubmission(
-                "tenant1", "student1", "course1",
-                "assignment1", 85, 100, "Good work!");
+        Grade result = gradeService.upsertSubmissionGrade(
+                "tenant1", "student1", "course1", "assignment1", 85, 100, "Good work!");
 
-        assertNotNull(result);
+        assertEquals(GradeType.ASSIGNMENT, result.getType());
+        assertEquals("course1", result.getCourseId());
+        assertNull(result.getClassId());
         verify(gradeRepository, times(1)).save(any(Grade.class));
     }
 
     @Test
-    void createGradeFromQuiz_Success() {
-        when(gradeRepository.save(any(Grade.class))).thenReturn(grade);
+    void upsertQuizGrade_QuizUsesCourseId() {
+        when(gradeRepository.findByQuizIdAndStudentId("quiz1", "student1"))
+                .thenReturn(Optional.empty());
+        when(gradeRepository.save(any(Grade.class))).thenAnswer(i -> i.getArgument(0));
 
-        Grade result = gradeService.createGradeFromQuiz(
-                "tenant1", "student1", "course1",
-                "quiz1", 18, 20);
+        Grade result = gradeService.upsertQuizGrade(
+                "tenant1", "student1", "course1", null,
+                "quiz1", 18, 20, GradeType.QUIZ);
 
-        assertNotNull(result);
-        verify(gradeRepository, times(1)).save(any(Grade.class));
+        assertEquals(GradeType.QUIZ, result.getType());
+        assertEquals("course1", result.getCourseId());
+        assertNull(result.getClassId());
+    }
+
+    @Test
+    void upsertQuizGrade_TestUsesClassId() {
+        when(gradeRepository.findByQuizIdAndStudentId("test1", "student1"))
+                .thenReturn(Optional.empty());
+        when(gradeRepository.save(any(Grade.class))).thenAnswer(i -> i.getArgument(0));
+
+        Grade result = gradeService.upsertQuizGrade(
+                "tenant1", "student1", null, "class1",
+                "test1", 45, 60, GradeType.TEST);
+
+        assertEquals(GradeType.TEST, result.getType());
+        assertNull(result.getCourseId());
+        assertEquals("class1", result.getClassId());
+    }
+
+    @Test
+    void upsertQuizGrade_ExamUsesClassId() {
+        when(gradeRepository.findByQuizIdAndStudentId("exam1", "student1"))
+                .thenReturn(Optional.empty());
+        when(gradeRepository.save(any(Grade.class))).thenAnswer(i -> i.getArgument(0));
+
+        Grade result = gradeService.upsertQuizGrade(
+                "tenant1", "student1", null, "class1",
+                "exam1", 45, 60, GradeType.EXAM);
+
+        assertEquals(GradeType.EXAM, result.getType());
+        assertNull(result.getCourseId());
+        assertEquals("class1", result.getClassId());
     }
 
     @Test
     void getGradesByStudent_ReturnsList() {
-        when(gradeRepository.findAllByStudentId("student1"))
-                .thenReturn(List.of(grade));
+        when(gradeRepository.findAllByStudentId("student1")).thenReturn(List.of(grade));
 
         List<Grade> results = gradeService.getGradesByStudent("student1");
 
@@ -103,9 +139,7 @@ public class GradeServiceTest {
     void getGradeById_NotFound() {
         when(gradeRepository.findById("999")).thenReturn(Optional.empty());
 
-        Optional<Grade> result = gradeService.getGradeById("999");
-
-        assertFalse(result.isPresent());
+        assertFalse(gradeService.getGradeById("999").isPresent());
     }
 
     @Test
@@ -113,8 +147,7 @@ public class GradeServiceTest {
         when(gradeRepository.findByAssignmentIdAndStudentId("assignment1", "student1"))
                 .thenReturn(Optional.of(grade));
 
-        Optional<Grade> result = gradeService
-                .getGradeByAssignmentAndStudent("assignment1", "student1");
+        Optional<Grade> result = gradeService.getGradeByAssignmentAndStudent("assignment1", "student1");
 
         assertTrue(result.isPresent());
         assertEquals(85, result.get().getScore());

@@ -2,7 +2,6 @@ package com.nexuslms.engine.service;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import org.springframework.data.mongodb.core.aggregation.VariableOperators;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -18,11 +17,28 @@ public class CloudinaryService {
     }
 
     public String uploadFile(MultipartFile file, String folder) throws IOException {
-        Map uploadResult = cloudinary.uploader().upload(
+        String original = file.getOriginalFilename();
+        String name = (original == null || original.isBlank()) ? "file" : original;
+
+        // Cloudinary re-appends the extension for images and videos based on the actual
+        // format, so we strip it there. For raw files (pdf, py, zip, docx…) it does not,
+        // so we keep the original name including the extension.
+        String contentType = file.getContentType();
+        boolean isMedia = contentType != null
+                && (contentType.startsWith("image/") || contentType.startsWith("video/"));
+
+        String publicId = isMedia ? name.replaceAll("\\.[^.]+$", "") : name;
+        publicId = publicId.replaceAll("[^a-zA-Z0-9._-]", "_");
+
+        Map<?, ?> uploadResult = cloudinary.uploader().upload(
                 file.getBytes(),
                 ObjectUtils.asMap(
-                    "folder", "nexuslms/" + folder,
-                        "resource_type", "auto"
+                        "folder", "nexuslms/" + folder,
+                        "resource_type", "auto",
+                        "public_id", publicId,
+                        // If a file with the same name is uploaded twice, append _1, _2…
+                        // instead of overwriting the earlier one.
+                        "unique_filename", true
                 )
         );
         return (String) uploadResult.get("secure_url");

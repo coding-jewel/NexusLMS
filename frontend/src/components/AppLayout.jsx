@@ -6,9 +6,26 @@ import '../styles/admin.css'
 
 // Add each page here as it gets built.
 const NAV = {
-  admin: [['Overview', '/admin'], ['Classes', '/admin/classes'], ['Teachers', '/admin/teachers'], ['Students', '/admin/students'], ['Courses', '/admin/courses'], ['Grading', '/admin/grading']],
-  student: [['My courses', '/student'], ['My grades', '/student/grades']],
-  teacher: [['My courses', '/teacher'], ['Assignments', '/teacher/assignments'], ['Tests & Exams', '/teacher/quizzes'], ['Gradebook', '/teacher/gradebook']],
+  admin: [
+    ['Overview', '/admin'],
+    ['Classes', '/admin/classes'],
+    ['Teachers', '/admin/teachers'],
+    ['Students', '/admin/students'],
+    ['Topics', '/admin/courses'],
+    ['Grading', '/admin/grading'],
+  ],
+  teacher: [
+    ['Overview', '/teacher'],
+    ['My Classes', '/teacher/classes'],
+    ['My Topics', '/teacher/courses'],
+    ['Assignments', '/teacher/assignments'],
+    ['Tests & Exams', '/teacher/quizzes'],
+    ['Gradebook', '/teacher/gradebook'],
+  ],
+  student: [
+    ['My Topics', '/student'],
+    ['My Grades', '/student/grades'],
+  ],
 }
 const LABELS = { admin: 'Admin', teacher: 'Teacher', student: 'Student' }
 

@@ -32,6 +32,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -64,6 +65,9 @@ class CourseServiceTest {
         teacherUser.setTenantId("t1");
         teacherUser.setName("Ms Okafor");
         teacherUser.setRole(Role.TEACHER);
+        teacherUser.setClassIds(new ArrayList<>(List.of("c1")));
+        when(userRepository.findById("u-teacher")).thenReturn(Optional.of(teacherUser));
+
         when(userRepository.findAllByTenantIdAndRole("t1", "TEACHER")).thenReturn(List.of(teacherUser));
 
         User studentUser = new User();
@@ -81,6 +85,10 @@ class CourseServiceTest {
             }
             return c;
         });
+
+        // respond() asks for the two counts per course. Default 0 is fine.
+        when(assignmentRepository.countByCourseId(anyString())).thenReturn(0L);
+        when(quizRepository.countQuizzesByCourseId(anyString())).thenReturn(0L);
     }
 
     private Course course(String id, String tenantId, String classId, String teacherId, boolean published) {
@@ -93,8 +101,6 @@ class CourseServiceTest {
         c.setPublished(published);
         return c;
     }
-
-    // --- create ---
 
     @Test
     void create_TakesSchoolAndTeacherFromTheCaller_AndStartsUnpublished() {
@@ -125,6 +131,21 @@ class CourseServiceTest {
     }
 
     @Test
+    void create_InAClassTheTeacherIsNotAssignedTo_IsRefused() {
+        User unassigned = new User();
+        unassigned.setId("u-other");
+        unassigned.setTenantId("t1");
+        unassigned.setRole(Role.TEACHER);
+        unassigned.setClassIds(new ArrayList<>());
+        when(userRepository.findById("u-other")).thenReturn(Optional.of(unassigned));
+
+        assertThrows(InvalidRequestException.class,
+                () -> service.create(otherTeacher, new CourseRequest("c1", "Maths", null)));
+
+        verify(courseRepository, never()).save(any());
+    }
+
+    @Test
     void create_DuplicateTitleInTheSameClass_IsRefused() {
         when(courseRepository.existsByTitleAndClassId("Maths", "c1")).thenReturn(true);
 
@@ -133,7 +154,16 @@ class CourseServiceTest {
         verify(courseRepository, never()).save(any());
     }
 
-    // --- list ---
+    @Test
+    void create_ReportsAssignmentAndQuizCounts() {
+        when(assignmentRepository.countByCourseId("course1")).thenReturn(3L);
+        when(quizRepository.countQuizzesByCourseId("course1")).thenReturn(2L);
+
+        CourseResponse r = service.create(teacher, new CourseRequest("c1", "Maths", null));
+
+        assertEquals(3, r.assignmentCount());
+        assertEquals(2, r.quizCount());
+    }
 
     @Test
     void list_Admin_SeesEveryCourseInTheirSchool() {
@@ -185,14 +215,12 @@ class CourseServiceTest {
         User loose = new User();
         loose.setId("u-loose");
         loose.setTenantId("t1");
-        when(userRepository.findById("u-loose")).thenReturn(Optional.of(loose)); // no classes
+        when(userRepository.findById("u-loose")).thenReturn(Optional.of(loose));
 
         assertTrue(service.list(new AuthUser("u-loose", "x@lincoln.edu", "t1", "STUDENT")).isEmpty());
 
         verify(courseRepository, never()).findAllByClassId(any());
     }
-
-    // --- get ---
 
     @Test
     void get_CourseFromAnotherSchool_IsNotFound() {
@@ -230,8 +258,6 @@ class CourseServiceTest {
         assertThrows(NotFoundException.class, () -> service.get(student, "far"));
     }
 
-    // --- publish ---
-
     @Test
     void publish_OwnCourse_Success() {
         when(courseRepository.findById("a")).thenReturn(Optional.of(course("a", "t1", "c1", "u-teacher", false)));
@@ -255,8 +281,6 @@ class CourseServiceTest {
         assertThrows(NotFoundException.class, () -> service.publish(teacher, "nope"));
     }
 
-    // --- delete ---
-
     @Test
     void delete_OwnEmptyCourse_Success() {
         when(courseRepository.findById("a")).thenReturn(Optional.of(course("a", "t1", "c1", "u-teacher", false)));
@@ -274,7 +298,7 @@ class CourseServiceTest {
         assertThrows(InvalidRequestException.class, () -> service.delete(teacher, "a"));
 
         when(assignmentRepository.existsByCourseId("a")).thenReturn(false);
-        when(quizRepository.existsByCourseId("a")).thenReturn(true);
+        when(quizRepository.existsQuizByCourseId("a")).thenReturn(true);
 
         assertThrows(InvalidRequestException.class, () -> service.delete(teacher, "a"));
         verify(courseRepository, never()).deleteById(any());

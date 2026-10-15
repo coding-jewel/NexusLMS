@@ -4,36 +4,33 @@ import { getGradingWeights, saveGradingWeights } from '../../api/grading'
 
 // Keep MIN.tests and MIN.exams in step with MIN_TESTS and MIN_EXAMS in GradingRules.java.
 // The server is the real check; this copy only lets the page warn while someone types.
-const MIN = { assignments: 0, tests: 20, exams: 50 }
+const MIN = { tests: 20, exams: 50 }
 const MAX = {
-  assignments: 100 - MIN.tests - MIN.exams,
-  tests: 100 - MIN.assignments - MIN.exams,
-  exams: 100 - MIN.assignments - MIN.tests,
+  tests: 100 - MIN.exams,
+  exams: 100 - MIN.tests,
 }
-const KEYS = ['assignments', 'tests', 'exams']
+const KEYS = ['tests', 'exams']
 const FIELDS = [
-  ['assignments', 'Assignments', 'Work students hand in'],
-  ['tests', 'Tests', 'On-screen tests during the term'],
+  ['tests', 'Tests', 'Tests taken in class during the term'],
   ['exams', 'Exams', 'End-of-term examinations'],
 ]
 
 // The form holds text, so a box can be empty while someone types.
-const toForm = (w) => ({ assignments: String(w.assignments), tests: String(w.tests), exams: String(w.exams) })
+const toForm = (w) => ({ tests: String(w.tests), exams: String(w.exams) })
 
-// Same rules, order and wording as GradingRules.problem on the server, plus the two
-// checks only a form needs. Returns '' when the weights are fine.
+// Same rules, order and wording as GradingRules.problem on the server.
+// Returns '' when the weights are fine.
 function problemWith(form) {
   const n = {}
   for (const key of KEYS) {
     const text = form[key].trim()
-    if (text === '') return 'Enter all three weights.'
+    if (text === '') return 'Enter both weights.'
     n[key] = Number(text)
     if (!Number.isInteger(n[key])) return 'Use whole numbers for the weights.'
   }
-  if (n.assignments < 0) return 'Assignments can’t count for less than 0%.'
   if (n.tests < MIN.tests) return `Tests must count for at least ${MIN.tests}%.`
   if (n.exams < MIN.exams) return `Exams must count for at least ${MIN.exams}%.`
-  const total = n.assignments + n.tests + n.exams
+  const total = n.tests + n.exams
   if (total !== 100) return `The weights must add up to 100%. Right now they add up to ${total}%.`
   return ''
 }
@@ -79,7 +76,6 @@ export default function Grading() {
     setSaveError('')
     try {
       const saved = await saveGradingWeights({
-        assignments: Number(form.assignments),
         tests: Number(form.tests),
         exams: Number(form.exams),
       })
@@ -97,7 +93,7 @@ export default function Grading() {
   return (
     <AdminLayout title="Grading">
       <div className="page-head">
-        <p>Set how much each type of work counts toward a student’s overall score. These weights apply to every course in your school.</p>
+        <p>Set how much tests and exams count toward a student’s overall score. Assignments and quizzes don’t count toward the class overall — they’re recorded inside each topic.</p>
       </div>
 
       {loadError ? (
@@ -139,7 +135,7 @@ export default function Grading() {
           {saveError && <p className="field__error" role="alert">{saveError}</p>}
 
           <p className="hint">
-            Limits: Assignments {MIN.assignments}–{MAX.assignments}%, Tests {MIN.tests}–{MAX.tests}%, Exams {MIN.exams}–{MAX.exams}%.
+            Limits: Tests {MIN.tests}–{MAX.tests}%, Exams {MIN.exams}–{MAX.exams}%.
           </p>
           <p className="hint">
             Changing the weights recalculates every student’s overall score straight away, including past terms.

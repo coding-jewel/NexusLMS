@@ -30,6 +30,10 @@ public class QuizAttempt {
 
     private boolean graded = false;
 
+    // Client-reported count of times the student left the test page.
+    // A deterrent, not a proof — recorded for the teacher to see.
+    private int leftPage = 0;
+
     @CreatedDate
     private LocalDateTime attemptedAt;
 
@@ -38,67 +42,30 @@ public class QuizAttempt {
 
     //Getters and Setters
 
-    public String getId() {
-        return id;
-    }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
 
-    public String getTenantId() {
-        return tenantId;
-    }
+    public String getQuizId() { return quizId; }
+    public void setQuizId(String quizId) { this.quizId = quizId; }
 
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
-    }
+    public String getStudentId() { return studentId; }
+    public void setStudentId(String studentId) { this.studentId = studentId; }
 
-    public String getQuizId() {
-        return quizId;
-    }
+    public Map<String, String> getAnswers() { return answers; }
+    public void setAnswers(Map<String, String> answers) { this.answers = answers; }
 
-    public void setQuizId(String quizId) {
-        this.quizId = quizId;
-    }
+    public Integer getScore() { return score; }
+    public void setScore(Integer score) { this.score = score; }
 
-    public String getStudentId() {
-        return studentId;
-    }
+    public boolean isGraded() { return graded; }
+    public void setGraded(boolean graded) { this.graded = graded; }
 
-    public void setStudentId(String studentId) {
-        this.studentId = studentId;
-    }
+    public int getLeftPage() { return leftPage; }
+    public void setLeftPage(int leftPage) { this.leftPage = leftPage; }
 
-    public Map<String, String> getAnswers() {
-        return answers;
-    }
-
-    public void setAnswers(Map<String, String> answers) {
-        this.answers = answers;
-    }
-
-    public Integer getScore() {
-        return score;
-    }
-
-    public void setScore(Integer score) {
-        this.score = score;
-    }
-
-    public boolean isGraded() {
-        return graded;
-    }
-
-    public void setGraded(boolean graded) {
-        this.graded = graded;
-    }
-
-    public LocalDateTime getAttemptedAt() {
-        return attemptedAt;
-    }
-
-    public void setAttemptedAt(LocalDateTime attemptedAt) {
-        this.attemptedAt = attemptedAt;
-    }
+    public LocalDateTime getAttemptedAt() { return attemptedAt; }
+    public void setAttemptedAt(LocalDateTime attemptedAt) { this.attemptedAt = attemptedAt; }
 }

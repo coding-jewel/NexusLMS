@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../../components/AdminLayout'
 import { listCourses } from '../../api/courses'
+import { listClasses } from '../../api/classes'
 
 export default function Courses() {
   const [courses, setCourses] = useState(null) // null while loading
+  const [classes, setClasses] = useState([])   // every class in the school, used for the filter
   const [error, setError] = useState('')
   const [classFilter, setClassFilter] = useState('') // '' means every class
   const [statusFilter, setStatusFilter] = useState('') // '' | 'published' | 'draft'
@@ -11,20 +13,23 @@ export default function Courses() {
   const load = () => {
     setError('')
     setCourses(null)
+    setClasses([])
     setClassFilter('')
     setStatusFilter('')
-    listCourses().then(setCourses).catch((err) => setError(err.message))
+    Promise.all([listCourses(), listClasses()])
+      .then(([courseList, classList]) => {
+        setCourses(courseList)
+        setClasses(classList)
+      })
+      .catch((err) => setError(err.message))
   }
   useEffect(() => { load() }, [])
 
-  // The class filter lists only classes that have at least one course.
-  const classOptions = useMemo(() => {
-    const seen = new Map()
-    for (const c of courses ?? []) {
-      if (!seen.has(c.classId)) seen.set(c.classId, c.className ?? 'Unknown class')
-    }
-    return [...seen].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
-  }, [courses])
+  // The filter lists every class in the school, sorted by name.
+  const classOptions = useMemo(
+    () => [...classes].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
+    [classes]
+  )
 
   const visible = (courses ?? []).filter((c) =>
     (!classFilter || c.classId === classFilter) &&

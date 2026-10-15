@@ -1,116 +1,147 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import AppLayout from '../../components/AppLayout'
-import { teacherCourses, gradebook as gb, gradingWeights as W } from '../../data/mock'
+import { listClasses } from '../../api/classes'
+import { getClassGradebook } from '../../api/gradebook'
+import { useAuth } from '../../auth/AuthContext'
 import '../../styles/teacher.css'
 
-const GROUPS = [['ASSIGNMENT', 'Assignments'], ['TEST', 'Tests'], ['EXAM', 'Exams']]
-const pct = (n) => (n === null ? '—' : `${Math.round(n)}%`)
-const itemsIn = (cat) => gb.items.map((it, i) => ({ it, i })).filter((x) => x.it.category === cat)
-
-// Group score = total earned / total possible, counting only items that have a score.
-const groupPct = (scores, cat) => {
-  const done = itemsIn(cat).filter(({ i }) => scores[i] !== null)
-  const possible = done.reduce((n, { it }) => n + it.total, 0)
-  return possible ? (done.reduce((n, { i }) => n + scores[i], 0) / possible) * 100 : null
-}
-
-// Weighted overall. Groups with no scores yet are left out and the rest are scaled up, so it is "so far".
-const overall = (scores) => {
-  let weight = 0, sum = 0, provisional = false
-  GROUPS.forEach(([cat]) => {
-    const p = groupPct(scores, cat)
-    if (p === null) { provisional = true; return }
-    weight += W[cat]; sum += p * W[cat]
-  })
-  return { value: weight ? sum / weight : null, provisional }
-}
+const pct = (n) => (n == null ? '—' : `${Math.round(n)}%`)
 
 export default function Gradebook() {
-  const [view, setView] = useState('classwork')
-  const [courseId, setCourseId] = useState(teacherCourses[0].id)
-  const groups = view === 'classwork' ? GROUPS.slice(0, 1) : GROUPS
-  const anyProvisional = gb.rows.some((r) => overall(r.scores).provisional)
-  const avg = (i) => {
-    const v = gb.rows.map((r) => r.scores[i]).filter((x) => x !== null)
-    return v.length ? (v.reduce((a, b) => a + b, 0) / v.length / gb.items[i].total) * 100 : null
+  const { user } = useAuth()
+  const [classes, setClasses] = useState([])
+  const [classId, setClassId] = useState('')
+  const [gb, setGb] = useState(null)
+  const [filter, setFilter] = useState('ALL') // ALL | TEST | EXAM
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    listClasses()
+      .then((all) => {
+        const mine = new Set(user?.classIds ?? [])
+        const myClasses = all
+          .filter((c) => mine.has(c.id))
+          .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+        setClasses(myClasses)
+        setClassId(myClasses[0]?.id ?? '')
+      })
+      .catch((err) => setError(err.message))
+  }, [user])
+
+  useEffect(() => {
+    if (!classId) return
+    setGb(null)
+    setError('')
+    getClassGradebook(classId).then(setGb).catch((err) => setError(err.message))
+  }, [classId])
+
+  const visibleGroups = gb
+    ? gb.groups.filter((g) => filter === 'ALL' || g.key.toUpperCase() === filter)
+    : []
+  const showOverall = filter === 'ALL'
+
+  const classAvg = (key) => {
+    if (!gb) return null
+    const values = gb.rows.map((r) => r.subtotals[key]).filter((v) => v != null)
+    if (values.length === 0) return null
+    return values.reduce((a, b) => a + b, 0) / values.length
+  }
+  const overallAvg = () => {
+    if (!gb) return null
+    const values = gb.rows.map((r) => r.overall).filter((v) => v != null)
+    if (values.length === 0) return null
+    return values.reduce((a, b) => a + b, 0) / values.length
   }
 
   return (
     <AppLayout role="teacher" title="Gradebook">
       <div className="page-head">
-        <div className="seg" role="group" aria-label="Gradebook view">
-          <button className={view === 'classwork' ? 'is-active' : ''} onClick={() => setView('classwork')}>Classwork</button>
-          <button className={view === 'overall' ? 'is-active' : ''} onClick={() => setView('overall')}>Overall</button>
-        </div>
+        <p>Weighted overall using your school’s grading settings. Students never see this view.</p>
         <label className="filter">
-          <span>Course</span>
-          <select value={courseId} onChange={(e) => setCourseId(e.target.value)}>
-            {teacherCourses.map((c) => <option key={c.id} value={c.id}>{c.title} ({c.className})</option>)}
+          <span>Class</span>
+          <select value={classId} onChange={(e) => setClassId(e.target.value)} disabled={classes.length === 0}>
+            {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
       </div>
-      <p className="gb-note">
-        {view === 'classwork'
-          ? 'Assignments only. Students can see their own row of this view.'
-          : 'Weighted by your school’s grading settings. Only teachers and admins can see this view.'}
-      </p>
 
-      <section className="panel">
-        <div className="table-wrap">
-          <table className="gb">
-            <thead>
-              <tr>
-                <th rowSpan={2}>Student</th>
-                {groups.map(([cat, label]) => (
-                  <th key={cat} colSpan={itemsIn(cat).length + 1} className="gb__group">
-                    {label}{view === 'overall' && <small>{W[cat]}% of overall</small>}
-                  </th>
-                ))}
-                {view === 'overall' && <th rowSpan={2}>Overall</th>}
-              </tr>
-              <tr>
-                {groups.flatMap(([cat]) => [
-                  ...itemsIn(cat).map(({ it }) => <th key={it.title}>{it.title}<small>/{it.total}</small></th>),
-                  <th key={`${cat}-sub`} className="gb__sub">Subtotal</th>,
-                ])}
-              </tr>
-            </thead>
-            <tbody>
-              {gb.rows.map((r) => {
-                const o = overall(r.scores)
-                return (
-                  <tr key={r.student}>
-                    <td><strong>{r.student}</strong></td>
-                    {groups.flatMap(([cat]) => [
-                      ...itemsIn(cat).map(({ it, i }) => <td key={it.title} className={r.scores[i] === null ? 'gb__empty' : ''}>{r.scores[i] === null ? '—' : r.scores[i]}</td>),
-                      <td key={`${cat}-sub`} className="gb__sub">{pct(groupPct(r.scores, cat))}</td>,
-                    ])}
-                    {view === 'overall' && (
-                      <td>
-                        <span className={`badge ${o.value !== null && o.value >= 50 ? 'badge--live' : ''}`}>{pct(o.value)}</span>
-                        {o.provisional && <small className="sub">so far</small>}
-                      </td>
-                    )}
+      {classes.length === 0 ? (
+        <section className="panel">
+          <p className="empty">You aren’t assigned to any class yet. Ask your admin to add you.</p>
+        </section>
+      ) : error ? (
+        <section className="panel">
+          <div className="empty">
+            <p className="field__error" role="alert">{error}</p>
+            <button className="btn btn--ghost" onClick={() => setClassId(classId)}>Try again</button>
+          </div>
+        </section>
+      ) : !gb ? (
+        <section className="panel"><p className="empty">Loading gradebook…</p></section>
+      ) : gb.rows.length === 0 ? (
+        <section className="panel"><p className="empty">No students in this class yet.</p></section>
+      ) : (
+        <>
+          <div className="filters">
+            <div className="seg" role="group" aria-label="Gradebook view">
+              <button className={filter === 'ALL' ? 'is-active' : ''} onClick={() => setFilter('ALL')}>All</button>
+              <button className={filter === 'TEST' ? 'is-active' : ''} onClick={() => setFilter('TEST')}>Tests</button>
+              <button className={filter === 'EXAM' ? 'is-active' : ''} onClick={() => setFilter('EXAM')}>Exams</button>
+            </div>
+            <span className="filters__count">{gb.rows.length} {gb.rows.length === 1 ? 'student' : 'students'}</span>
+          </div>
+
+          <section className="panel">
+            <div className="table-wrap">
+              <table className="gb">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    {visibleGroups.map((g) => (
+                      <th key={g.key} className="gb__group">{g.label}</th>
+                    ))}
+                    {showOverall && <th>Overall</th>}
                   </tr>
-                )
-              })}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td>Class average</td>
-                {groups.flatMap(([cat]) => [
-                  ...itemsIn(cat).map(({ it, i }) => <td key={it.title}>{pct(avg(i))}</td>),
-                  <td key={`${cat}-sub`} className="gb__sub" />,
-                ])}
-                {view === 'overall' && <td />}
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </section>
+                </thead>
+                <tbody>
+                  {gb.rows.map((r) => (
+                    <tr key={r.studentId}>
+                      <td><strong>{r.studentName}</strong></td>
+                      {visibleGroups.map((g) => (
+                        <td key={g.key} className={r.subtotals[g.key] == null ? 'gb__empty' : ''}>
+                          {pct(r.subtotals[g.key])}
+                        </td>
+                      ))}
+                      {showOverall && (
+                        <td>
+                          <span className={`badge ${r.overall != null && r.overall >= 50 ? 'badge--live' : ''}`}>
+                            {pct(r.overall)}
+                          </span>
+                          {r.provisional && <small className="sub">so far</small>}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>Class average</td>
+                    {visibleGroups.map((g) => (
+                      <td key={g.key} className="gb__sub">{pct(classAvg(g.key))}</td>
+                    ))}
+                    {showOverall && <td>{pct(overallAvg())}</td>}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
 
-      {view === 'overall' && anyProvisional && (
-        <p className="gb-note">“So far” means a group has no scores yet (for example, the exam hasn’t been taken). The overall uses only the groups that have scores, with their weights scaled to 100.</p>
+          {showOverall && gb.rows.some((r) => r.provisional) && (
+            <p className="gb-note">
+              “So far” means a group has no scores yet. The overall uses only the groups that have scores, with their weights scaled to 100.
+            </p>
+          )}
+        </>
       )}
     </AppLayout>
   )

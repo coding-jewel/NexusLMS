@@ -9,46 +9,37 @@ class GradingRulesTest {
 
     @Test
     void acceptsTheDefaults() {
-        assertNull(GradingRules.problem(20, 20, 60));
-    }
-
-    @Test
-    void assignmentsMayCountForNothing() {
-        assertNull(GradingRules.problem(0, 40, 60));
+        assertNull(GradingRules.problem(40, 60));
     }
 
     @Test
     void acceptsExactlyTheMinimums() {
-        assertNull(GradingRules.problem(30, 20, 50));
+        assertNull(GradingRules.problem(20, 80));
+    }
+
+    @Test
+    void acceptsMinimumTestsWithMinimumExams() {
+        assertNull(GradingRules.problem(50, 50));
     }
 
     @Test
     void rejectsTestsBelowTheMinimum() {
-        String problem = GradingRules.problem(40, 10, 50);
-
+        String problem = GradingRules.problem(10, 90);
         assertNotNull(problem);
         assertTrue(problem.contains("Tests"));
     }
 
     @Test
     void rejectsExamsBelowTheMinimum() {
-        String problem = GradingRules.problem(30, 30, 40);
-
+        String problem = GradingRules.problem(40, 40);
         assertNotNull(problem);
         assertTrue(problem.contains("Exams"));
     }
 
     @Test
-    void rejectsNegativeAssignments() {
-        String problem = GradingRules.problem(-10, 60, 50);
-
-        assertNotNull(problem);
-        assertTrue(problem.contains("Assignments"));
-    }
-
-    @Test
     void rejectsATotalThatIsNotOneHundredAndSaysWhatItIs() {
-        assertTrue(GradingRules.problem(20, 20, 50).contains("90%"));
-        assertTrue(GradingRules.problem(30, 30, 60).contains("120%"));
+        // Values chosen to pass the minimums (tests ≥ 20, exams ≥ 50) but not sum to 100.
+        assertTrue(GradingRules.problem(20, 60).contains("80%"));
+        assertTrue(GradingRules.problem(50, 60).contains("110%"));
     }
 }

@@ -23,6 +23,15 @@ public interface QuizAttemptRepository extends MongoRepository<QuizAttempt, Stri
     @Query(value = "{ 'quizId': ?0, 'studentId': ?1 }", exists = true)
     boolean existsByQuizIdAndStudentId(String quizId, String studentId);
 
+    @Query(value = "{ 'quizId': ?0 }", exists = true)
+    boolean existsByQuizId(String quizId);
+
+    @Query(value = "{ 'quizId': ?0 }", count = true)
+    long countByQuizId(String quizId);
+
     @Query("{ 'quizId': ?0, 'graded': false }")
     List<QuizAttempt> findAllUngradedByQuizId(String quizId);
+
+    @Query(value = "{ 'quizId': ?0, 'graded': false }", count = true)
+    long countByQuizIdAndGradedFalse(String quizId);
 }

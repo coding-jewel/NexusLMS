@@ -21,4 +21,7 @@ public interface AssignmentRepository extends MongoRepository<Assignment, String
 
     @Query(value = "{ 'courseId': ?0 }", exists = true)
     boolean existsByCourseId(String courseId);
+
+    @Query(value = "{ 'courseId': ?0 }", count = true)
+    long countByCourseId(String courseId);
 }
