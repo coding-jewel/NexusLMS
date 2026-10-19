@@ -25,6 +25,7 @@
 .stat__value { font: 800 2.3rem var(--font-display); color: var(--slate-900); letter-spacing: -0.03em; }
 .stat__note { font-size: .82rem; color: var(--teal-700); }
 .stat__note--warn { color: var(--warn); }
+.stat__value--warn { color: var(--warn); }
 .actions { display: flex; gap: .7rem; flex-wrap: wrap; }
 
 .columns { display: grid; grid-template-columns: 1.7fr 1fr; gap: 1.2rem; align-items: start; }

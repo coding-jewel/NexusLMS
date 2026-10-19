@@ -3,6 +3,7 @@ package com.nexuslms.engine.service;
 import com.nexuslms.engine.dto.GradeAttemptRequest;
 import com.nexuslms.engine.dto.QuizAttemptRequest;
 import com.nexuslms.engine.exception.DuplicateResourceException;
+import com.nexuslms.engine.exception.InvalidRequestException;
 import com.nexuslms.engine.exception.NotFoundException;
 import com.nexuslms.engine.models.Course;
 import com.nexuslms.engine.models.GradeType;
@@ -43,10 +44,6 @@ public class QuizAttemptService {
         this.gradeService = gradeService;
     }
 
-    /**
-     * A student takes a quiz. The student is the caller; the quiz must be published and
-     * must belong to a topic (or class) the student is enrolled in. One attempt only.
-     */
     public QuizAttempt submitAttempt(AuthUser auth, QuizAttemptRequest request) {
         Quiz quiz = quizRepository.findById(request.quizId())
                 .filter(Quiz::isPublished)
@@ -77,7 +74,6 @@ public class QuizAttemptService {
         return submitAttempt(attempt);
     }
 
-    /** Scoring loop. Callers should go through the AuthUser overload. */
     public QuizAttempt submitAttempt(QuizAttempt attempt) {
         if (quizAttemptRepository.existsByQuizIdAndStudentId(
                 attempt.getQuizId(), attempt.getStudentId())) {
@@ -88,14 +84,11 @@ public class QuizAttemptService {
                 .orElseThrow(() -> new NotFoundException("Quiz not found"));
 
         int totalScore = 0;
-        int totalMarks = 0;
         boolean hasOpenEnded = false;
-
         List<Question> questions = quiz.getQuestions();
         for (int i = 0; i < questions.size(); i++) {
             Question question = questions.get(i);
             int marks = question.getMarks() != null ? question.getMarks() : 1;
-            totalMarks += marks;
             String studentAnswer = attempt.getAnswers().get(String.valueOf(i));
 
             if (question.getType() == QuestionType.MULTIPLE_CHOICE) {
@@ -115,9 +108,14 @@ public class QuizAttemptService {
             gradeService.upsertQuizGrade(
                     saved.getTenantId(), saved.getStudentId(),
                     quiz.getCourseId(), quiz.getClassId(),
-                    quiz.getId(), totalScore, totalMarks, gradeTypeOf(quiz));
+                    quiz.getId(), totalScore, quiz.effectiveTotalMarks(), gradeTypeOf(quiz));
         }
         return saved;
+    }
+
+    public Optional<QuizAttempt> myAttemptFor(AuthUser auth, String quizId) {
+        return quizAttemptRepository.findByQuizIdAndStudentId(quizId, auth.userId())
+                .filter(a -> auth.tenantId().equals(a.getTenantId()));
     }
 
     public List<QuizAttempt> getAllAttemptsByQuiz(String quizId) {
@@ -148,18 +146,24 @@ public class QuizAttemptService {
                 .filter(q -> auth.userId().equals(q.getTeacherId()))
                 .orElseThrow(() -> new NotFoundException("Attempt not found"));
 
+        if (quiz.isResultsReleased()) {
+            throw new InvalidRequestException("Results have already been released. You cannot update marks.");
+        }
+
         int current = attempt.getScore() == null ? 0 : attempt.getScore();
-        attempt.setScore(current + request.additionalScore());
+        int newScore = current + request.additionalScore();
+        if (newScore > quiz.effectiveTotalMarks()) {
+            throw new InvalidRequestException(
+                    "Score can't be higher than the quiz total of " + quiz.effectiveTotalMarks() + ".");
+        }
+        attempt.setScore(newScore);
         attempt.setGraded(true);
         QuizAttempt saved = quizAttemptRepository.save(attempt);
 
-        int totalMarks = quiz.getQuestions().stream()
-                .mapToInt(q -> q.getMarks() != null ? q.getMarks() : 1)
-                .sum();
         gradeService.upsertQuizGrade(
                 saved.getTenantId(), saved.getStudentId(),
                 quiz.getCourseId(), quiz.getClassId(),
-                quiz.getId(), saved.getScore(), totalMarks, gradeTypeOf(quiz));
+                quiz.getId(), saved.getScore(), quiz.effectiveTotalMarks(), gradeTypeOf(quiz));
 
         return saved;
     }

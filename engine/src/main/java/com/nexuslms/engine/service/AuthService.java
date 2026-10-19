@@ -3,7 +3,7 @@ package com.nexuslms.engine.service;
 import com.nexuslms.engine.dto.AuthResponse;
 import com.nexuslms.engine.dto.LoginRequest;
 import com.nexuslms.engine.dto.UserResponse;
-import com.nexuslms.engine.exception.InvalidRequestException;
+import com.nexuslms.engine.exception.PendingApprovalException;
 import com.nexuslms.engine.models.Tenant;
 import com.nexuslms.engine.models.User;
 import com.nexuslms.engine.repository.TenantRepository;
@@ -29,7 +29,6 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
-    // Every failure gives the same message, so nobody can tell which part was wrong.
     public AuthResponse login(LoginRequest request) {
         Tenant tenant = tenantRepository.findBySubdomain(SubdomainRules.normalize(request.subdomain()))
                 .filter(Tenant::isActive)
@@ -43,16 +42,15 @@ public class AuthService {
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new BadCredentialsException(INVALID);
         }
-        // Only someone who knows the right password learns that their request is still waiting.
+
         if (!user.isApproved()) {
-            throw new InvalidRequestException("Your account is waiting for approval from your school admin.");
+            throw new PendingApprovalException("Your account is waiting for approval from your school admin.");
         }
 
         String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole().name(), user.getTenantId());
         return new AuthResponse(token, UserResponse.from(user));
     }
 
-    /** Used to restore a session. A deleted or disabled user gets a 401, which sends them to /login. */
     public UserResponse me(String userId) {
         if (userId == null) {
             throw new BadCredentialsException("Session expired");

@@ -41,11 +41,7 @@ public class SubmissionService {
         this.gradeService = gradeService;
     }
 
-    /**
-     * A student hands in their work. The student is the caller; the assignment must belong
-     * to a topic in one of the student's classes, and it must not have been submitted already.
-     * Late submissions are accepted — flagged, not rejected.
-     */
+    /** A student hands in their work. Late submissions are flagged, not rejected. */
     public Submission createSubmission(AuthUser auth, SubmissionRequest request) {
         Assignment assignment = assignmentRepository.findById(request.assignmentId())
                 .orElseThrow(() -> new NotFoundException("Assignment not found"));
@@ -71,6 +67,27 @@ public class SubmissionService {
         return submissionRepository.save(s);
     }
 
+    /** The signed-in student's own submission to an assignment, if they've made one. */
+    public Optional<Submission> mySubmissionFor(AuthUser auth, String assignmentId) {
+        return submissionRepository.findByAssignmentIdAndStudentId(assignmentId, auth.userId())
+                .filter(s -> auth.tenantId().equals(s.getTenantId()));
+    }
+
+    /**
+     * The signed-in student deletes their own submission so they can hand in again.
+     * Only allowed while the teacher hasn't graded it yet.
+     */
+    public void unsubmit(AuthUser auth, String assignmentId) {
+        Submission submission = submissionRepository
+                .findByAssignmentIdAndStudentId(assignmentId, auth.userId())
+                .filter(s -> auth.tenantId().equals(s.getTenantId()))
+                .orElseThrow(() -> new NotFoundException("You haven't submitted this assignment."));
+        if (submission.isGraded()) {
+            throw new InvalidRequestException("This has already been graded. Ask your teacher if you need to change something.");
+        }
+        submissionRepository.deleteById(submission.getId());
+    }
+
     public List<Submission> getAllSubmissionsByAssignment(String assignmentId) {
         return submissionRepository.findAllByAssignmentId(assignmentId);
     }
@@ -91,14 +108,16 @@ public class SubmissionService {
         return submissionRepository.findAllUngradedByAssignmentId(assignmentId);
     }
 
-    public Submission addFile(String id, String fileUrl) {
+    /** Only the owning student can attach files to their own submission. */
+    public Submission addFile(AuthUser auth, String id, String fileUrl) {
         Submission submission = submissionRepository.findById(id)
+                .filter(s -> auth.tenantId().equals(s.getTenantId()))
+                .filter(s -> auth.userId().equals(s.getStudentId()))
                 .orElseThrow(() -> new NotFoundException("Submission not found"));
         submission.getFileUrls().add(fileUrl);
         return submissionRepository.save(submission);
     }
 
-    /** A teacher may only grade submissions to assignments they own. */
     public Submission gradeSubmission(AuthUser auth, String submissionId, GradeSubmissionRequest request) {
         Submission submission = submissionRepository.findById(submissionId)
                 .filter(s -> auth.tenantId().equals(s.getTenantId()))

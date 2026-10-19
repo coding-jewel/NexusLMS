@@ -36,6 +36,24 @@ public class SubmissionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(submissionService.createSubmission(auth, request));
     }
 
+    @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping("/assignment/{assignmentId}/mine")
+    public ResponseEntity<Submission> mySubmission(@PathVariable String assignmentId,
+                                                   @AuthenticationPrincipal AuthUser auth) {
+        return submissionService.mySubmissionFor(auth, assignmentId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /** Delete my own submission so I can hand in again. Only allowed while it's ungraded. */
+    @PreAuthorize("hasRole('STUDENT')")
+    @DeleteMapping("/assignment/{assignmentId}/mine")
+    public ResponseEntity<Void> unsubmit(@PathVariable String assignmentId,
+                                         @AuthenticationPrincipal AuthUser auth) {
+        submissionService.unsubmit(auth, assignmentId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PreAuthorize("hasRole('TEACHER')")
     @GetMapping("/assignment/{assignmentId}")
     public ResponseEntity<List<Submission>> getAllSubmissionsByAssignment(@PathVariable String assignmentId) {
@@ -76,7 +94,7 @@ public class SubmissionController {
                                               @AuthenticationPrincipal AuthUser auth) {
         try {
             String fileUrl = cloudinaryService.uploadFile(file, "submissions");
-            return ResponseEntity.ok(submissionService.addFile(id, fileUrl));
+            return ResponseEntity.ok(submissionService.addFile(auth, id, fileUrl));
         } catch (IOException e) {
             return ResponseEntity.internalServerError().build();
         }

@@ -31,6 +31,16 @@ public class QuizAttemptController {
         return ResponseEntity.status(HttpStatus.CREATED).body(quizAttemptService.submitAttempt(auth, request));
     }
 
+    /** The signed-in student's own attempt at a quiz, or 404 if they haven't attempted. */
+    @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping("/quiz/{quizId}/mine")
+    public ResponseEntity<QuizAttempt> myAttempt(@PathVariable String quizId,
+                                                 @AuthenticationPrincipal AuthUser auth) {
+        return quizAttemptService.myAttemptFor(auth, quizId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PreAuthorize("hasRole('TEACHER')")
     @GetMapping("/quiz/{quizId}")
     public ResponseEntity<List<QuizAttempt>> getAllAttemptsByQuiz(@PathVariable String quizId) {

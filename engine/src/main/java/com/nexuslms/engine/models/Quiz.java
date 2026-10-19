@@ -33,6 +33,10 @@ public class Quiz {
 
     private Integer timeLimitMinutes;
 
+    // The ceiling for this quiz. If a teacher forgets to set it (older documents),
+    // the sum of the question marks is used instead — see effectiveTotalMarks().
+    private int totalMarks = 0;
+
     private List<Question> questions = new ArrayList<>();
 
     private List<String> attachmentUrls = new ArrayList<>();
@@ -41,9 +45,6 @@ public class Quiz {
 
     private boolean resultsReleased = false;
 
-    // Anti-cheat guard when a student is taking this quiz.
-    // OFF — don't record anything. RECORD — count tab-aways and show them to the teacher.
-    // AUTO — same as RECORD, plus the client auto-submits once the limit is reached.
     private String guardMode = "RECORD";
     private int guardLimit = 3;
 
@@ -81,6 +82,15 @@ public class Quiz {
 
     public Integer getTimeLimitMinutes() { return timeLimitMinutes; }
     public void setTimeLimitMinutes(Integer timeLimitMinutes) { this.timeLimitMinutes = timeLimitMinutes; }
+
+    public int getTotalMarks() { return totalMarks; }
+    public void setTotalMarks(int totalMarks) { this.totalMarks = Math.max(0, totalMarks); }
+
+    /** The denominator for this quiz. Falls back to the sum of question marks when unset. */
+    public int effectiveTotalMarks() {
+        if (totalMarks > 0) return totalMarks;
+        return questions.stream().mapToInt(q -> q.getMarks() != null ? q.getMarks() : 1).sum();
+    }
 
     public List<Question> getQuestions() { return questions; }
     public void setQuestions(List<Question> questions) { this.questions = questions == null ? new ArrayList<>() : questions; }

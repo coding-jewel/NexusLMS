@@ -2,8 +2,8 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import NotAllowed from '../pages/NotAllowed'
 
-// Wraps a group of routes. Not signed in -> login (and back here afterwards). Wrong role -> "not allowed".
-// This is only about what people see. The server still checks every request.
+// Wraps a group of routes. Not signed in -> login (and back here afterwards).
+// If a `role` is provided, wrong role -> "not allowed". If omitted, any logged-in user can pass.
 export default function RequireRole({ role }) {
   const { user, loading } = useAuth()
   const location = useLocation()
@@ -14,6 +14,6 @@ export default function RequireRole({ role }) {
   if (!user) {
     return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
   }
-  if (user.role !== role) return <NotAllowed />
+  if (role && user.role !== role) return <NotAllowed />
   return <Outlet />
 }

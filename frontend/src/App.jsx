@@ -5,12 +5,17 @@ import Register from './pages/Register'
 import Login from './pages/Login'
 import Join from './pages/Join'
 import NotFound from './pages/NotFound'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
+import Settings from './pages/Settings'
+
 import AdminDashboard from './pages/admin/AdminDashboard'
 import Classes from './pages/admin/Classes'
 import Teachers from './pages/admin/Teachers'
 import Students from './pages/admin/Students'
 import Courses from './pages/admin/Courses'
 import Grading from './pages/admin/Grading'
+
 import TeacherOverview from './pages/teacher/TeacherOverview'
 import TeacherClasses from './pages/teacher/TeacherClasses'
 import TeacherCourses from './pages/teacher/TeacherCourses'
@@ -21,20 +26,27 @@ import GradeSubmissions from './pages/teacher/GradeSubmissions'
 import Gradebook from './pages/teacher/Gradebook'
 import Assignments from './pages/teacher/Assignments'
 import MarkQuiz from './pages/teacher/MarkQuiz'
+
 import StudentDashboard from './pages/student/StudentDashboard'
+import StudentTopics from './pages/student/StudentTopics'
 import StudentCourse from './pages/student/StudentCourse'
 import StudentAssignment from './pages/student/StudentAssignment'
+import StudentAssessments from './pages/student/StudentAssessments'
 import TakeTest from './pages/student/TakeTest'
 import MyGrades from './pages/student/MyGrades'
 
 export default function App() {
   return (
     <Routes>
+      {/* --- Public Routes --- */}
       <Route path="/" element={<Landing />} />
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/join" element={<Join />} />
 
+      {/* --- Admin Routes --- */}
       <Route element={<RequireRole role="ADMIN" />}>
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/classes" element={<Classes />} />
@@ -44,6 +56,7 @@ export default function App() {
         <Route path="/admin/grading" element={<Grading />} />
       </Route>
 
+      {/* --- Teacher Routes --- */}
       <Route element={<RequireRole role="TEACHER" />}>
         <Route path="/teacher" element={<TeacherOverview />} />
         <Route path="/teacher/classes" element={<TeacherClasses />} />
@@ -58,12 +71,20 @@ export default function App() {
         <Route path="/teacher/assignments" element={<Assignments />} />
       </Route>
 
+      {/* --- Student Routes --- */}
       <Route element={<RequireRole role="STUDENT" />}>
         <Route path="/student" element={<StudentDashboard />} />
+        <Route path="/student/topics" element={<StudentTopics />} />
         <Route path="/student/courses/:id" element={<StudentCourse />} />
         <Route path="/student/courses/:id/assignments/:aid" element={<StudentAssignment />} />
-        <Route path="/student/courses/:id/tests/:tid" element={<TakeTest />} />
+        <Route path="/student/assessments" element={<StudentAssessments />} />
+        <Route path="/student/quizzes/:qid/take" element={<TakeTest />} />
         <Route path="/student/grades" element={<MyGrades />} />
+      </Route>
+
+      {/* --- Shared Authenticated Routes --- */}
+      <Route element={<RequireRole />}>
+        <Route path="/settings" element={<Settings />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

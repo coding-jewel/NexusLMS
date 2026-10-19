@@ -2,9 +2,11 @@ package com.nexuslms.engine.service;
 
 import com.nexuslms.engine.dto.QuizRequest;
 import com.nexuslms.engine.dto.QuizUpdateRequest;
+import com.nexuslms.engine.dto.StudentQuizResponse;
 import com.nexuslms.engine.exception.InvalidRequestException;
 import com.nexuslms.engine.exception.NotFoundException;
 import com.nexuslms.engine.models.Course;
+import com.nexuslms.engine.models.Question;
 import com.nexuslms.engine.models.Quiz;
 import com.nexuslms.engine.models.QuizCategory;
 import com.nexuslms.engine.models.SchoolClass;
@@ -55,6 +57,7 @@ public class QuizService {
         quiz.setTitle(request.title().trim());
         quiz.setDescription(request.description() == null ? null : request.description().trim());
         quiz.setTimeLimitMinutes(request.timeLimitMinutes());
+        quiz.setTotalMarks(request.totalMarks());
         quiz.setPublished(false);
         quiz.setResultsReleased(category == QuizCategory.QUIZ);
         quiz.setGuardMode(normalizeMode(request.guardMode()));
@@ -90,20 +93,28 @@ public class QuizService {
         return quizRepository.save(quiz);
     }
 
-    /**
-     * Replaces the editable fields of an existing quiz.
-     * Refused once students have attempted it — answers are stored by question index,
-     * so swapping questions would silently invalidate every attempt.
-     */
     public Quiz update(AuthUser auth, String id, QuizUpdateRequest request) {
         Quiz quiz = owned(auth, id);
+
+        if (quiz.isPublished()) {
+            throw new InvalidRequestException("This quiz is already published. You can't edit it now.");
+        }
         if (quizAttemptRepository.existsByQuizId(quiz.getId())) {
             throw new InvalidRequestException("This quiz already has attempts. You can't edit it now.");
         }
+
+        List<Question> questions = request.questions() == null ? new ArrayList<>() : new ArrayList<>(request.questions());
+        int sum = questions.stream().mapToInt(q -> q.getMarks() != null ? q.getMarks() : 1).sum();
+        if (sum > request.totalMarks()) {
+            throw new InvalidRequestException(
+                    "Questions add up to " + sum + ", which is more than the total of " + request.totalMarks() + ".");
+        }
+
         quiz.setTitle(request.title().trim());
         quiz.setDescription(request.description() == null ? null : request.description().trim());
         quiz.setTimeLimitMinutes(request.timeLimitMinutes());
-        quiz.setQuestions(request.questions() == null ? new ArrayList<>() : new ArrayList<>(request.questions()));
+        quiz.setTotalMarks(request.totalMarks());
+        quiz.setQuestions(questions);
         if (request.guardMode() != null) quiz.setGuardMode(normalizeMode(request.guardMode()));
         if (request.guardLimit() != null) quiz.setGuardLimit(normalizeLimit(request.guardLimit()));
         return quizRepository.save(quiz);
@@ -143,10 +154,37 @@ public class QuizService {
         return quizRepository.findById(id);
     }
 
+    public StudentQuizResponse getQuizForStudent(AuthUser auth, String id) {
+        Quiz quiz = quizRepository.findById(id)
+                .filter(Quiz::isPublished)
+                .orElseThrow(() -> new NotFoundException("Quiz not found"));
+        User me = userRepository.findById(auth.userId())
+                .filter(u -> auth.tenantId().equals(u.getTenantId()))
+                .orElseThrow(() -> new NotFoundException("Quiz not found"));
+
+        boolean enrolled;
+        if (quiz.getCategory() == QuizCategory.QUIZ) {
+            Course course = courseRepository.findById(quiz.getCourseId())
+                    .orElseThrow(() -> new NotFoundException("Quiz not found"));
+            enrolled = me.getClassIds().contains(course.getClassId());
+        } else {
+            enrolled = me.getClassIds().contains(quiz.getClassId());
+        }
+        if (!enrolled) {
+            throw new NotFoundException("Quiz not found");
+        }
+        return StudentQuizResponse.from(quiz);
+    }
+
     // --- writes ---
 
     public Quiz publishQuiz(AuthUser auth, String id) {
         Quiz quiz = owned(auth, id);
+        int sum = quiz.getQuestions().stream().mapToInt(q -> q.getMarks() != null ? q.getMarks() : 1).sum();
+        if (sum != quiz.getTotalMarks()) {
+            throw new InvalidRequestException(
+                    "Questions add up to " + sum + ", but the total is " + quiz.getTotalMarks() + ". They must match exactly before publishing.");
+        }
         quiz.setPublished(true);
         return quizRepository.save(quiz);
     }

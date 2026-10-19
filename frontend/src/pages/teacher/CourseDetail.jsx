@@ -405,7 +405,13 @@ export default function CourseDetail() {
                     </div>
                     <div className="rows__end">
                       <span className={`badge ${q.published ? 'badge--live' : ''}`}>{q.published ? 'Published' : 'Draft'}</span>
-                      <Link to={`/teacher/quizzes/${q.id}/edit`} className="btn btn--ghost btn--sm">Edit</Link>
+                      
+                      <Link
+                        to={`/teacher/quizzes/${q.id}/edit`}
+                        className={`btn btn--ghost btn--sm ${q.published ? 'btn--disabled' : ''}`}
+                        style={q.published ? { pointerEvents: 'none', opacity: 0.5 } : {}}
+                      >Edit</Link>
+                      
                       <Link to={`/teacher/quizzes/${q.id}/mark`} className="btn btn--ghost btn--sm">Mark answers</Link>
                       <button className="btn btn--ghost btn--sm btn--danger" onClick={() => openConfirm('quiz', q)}>Delete</button>
                     </div>

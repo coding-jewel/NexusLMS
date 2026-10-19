@@ -72,7 +72,7 @@ public class GradebookService {
                         .toList());
         GradebookResponse.Group qGroup = new GradebookResponse.Group("quizzes", "Quizzes",
                 quizzes.stream()
-                        .map(q -> new GradebookResponse.Item(q.getId(), q.getTitle(), totalMarks(q)))
+                        .map(q -> new GradebookResponse.Item(q.getId(), q.getTitle(), q.effectiveTotalMarks()))
                         .toList());
 
         List<GradebookResponse.Row> rows = new ArrayList<>();
@@ -93,7 +93,7 @@ public class GradebookService {
                 if (g != null && g.getScore() != null) {
                     scores.put(q.getId(), g.getScore());
                     qEarned += g.getScore();
-                    qPossible += g.getTotalMarks() != null ? g.getTotalMarks() : totalMarks(q);
+                    qPossible += g.getTotalMarks() != null ? g.getTotalMarks() : q.effectiveTotalMarks();
                 }
             }
             Map<String, Double> subtotals = new HashMap<>();
@@ -135,9 +135,9 @@ public class GradebookService {
         Map<String, Grade> lookup = index(gradeRepository.findAllByQuizIdIn(allIds), false);
 
         GradebookResponse.Group tGroup = new GradebookResponse.Group("tests", "Tests",
-                tests.stream().map(q -> new GradebookResponse.Item(q.getId(), q.getTitle(), totalMarks(q))).toList());
+                tests.stream().map(q -> new GradebookResponse.Item(q.getId(), q.getTitle(), q.effectiveTotalMarks())).toList());
         GradebookResponse.Group eGroup = new GradebookResponse.Group("exams", "Exams",
-                exams.stream().map(q -> new GradebookResponse.Item(q.getId(), q.getTitle(), totalMarks(q))).toList());
+                exams.stream().map(q -> new GradebookResponse.Item(q.getId(), q.getTitle(), q.effectiveTotalMarks())).toList());
 
         List<GradebookResponse.Row> rows = new ArrayList<>();
         for (User s : students) {
@@ -149,7 +149,7 @@ public class GradebookService {
                 if (g != null && g.getScore() != null) {
                     scores.put(q.getId(), g.getScore());
                     tEarned += g.getScore();
-                    tPossible += g.getTotalMarks() != null ? g.getTotalMarks() : totalMarks(q);
+                    tPossible += g.getTotalMarks() != null ? g.getTotalMarks() : q.effectiveTotalMarks();
                 }
             }
             double eEarned = 0, ePossible = 0;
@@ -158,7 +158,7 @@ public class GradebookService {
                 if (g != null && g.getScore() != null) {
                     scores.put(q.getId(), g.getScore());
                     eEarned += g.getScore();
-                    ePossible += g.getTotalMarks() != null ? g.getTotalMarks() : totalMarks(q);
+                    ePossible += g.getTotalMarks() != null ? g.getTotalMarks() : q.effectiveTotalMarks();
                 }
             }
 
@@ -190,9 +190,5 @@ public class GradebookService {
             if (itemId != null) out.put(g.getStudentId() + ":" + itemId, g);
         }
         return out;
-    }
-
-    private int totalMarks(Quiz q) {
-        return q.getQuestions().stream().mapToInt(x -> x.getMarks() != null ? x.getMarks() : 1).sum();
     }
 }

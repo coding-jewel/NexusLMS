@@ -9,20 +9,28 @@ const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(Boolean(getToken())) // true while a saved session is being checked
+  const [loading, setLoading] = useState(Boolean(getToken()))
 
-  // On every page load, ask the server who the saved token belongs to.
+  const refreshUser = async () => {
+    if (!getToken()) return
+    try {
+      const me = await api.get('/auth/me')
+      setUser(me)
+    } catch {
+      // 401 is handled globally by the api client
+    }
+  }
+
   useEffect(() => {
     if (!getToken()) return
     let current = true
     api.get('/auth/me')
       .then((me) => current && setUser(me))
-      .catch(() => {}) // a 401 has already cleared the token; any other failure means "not signed in"
+      .catch(() => {})
       .finally(() => current && setLoading(false))
     return () => { current = false }
   }, [])
 
-  // Used when the server has just handed us a token (for example after a student joins by code).
   const setSession = ({ token, user: who }) => {
     setToken(token)
     setUser(who)
@@ -39,7 +47,7 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
-  return <AuthContext.Provider value={{ user, loading, login, logout, setSession }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, login, logout, setSession, refreshUser }}>{children}</AuthContext.Provider>
 }
 
 export const useAuth = () => useContext(AuthContext)

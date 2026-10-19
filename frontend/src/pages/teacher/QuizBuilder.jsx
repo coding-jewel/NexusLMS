@@ -10,12 +10,6 @@ import '../../styles/teacher.css'
 let nextId = 1
 const blank = (type) => ({ id: nextId++, type, text: '', marks: 1, options: ['', ''], correct: 0 })
 
-// Used for both creating and editing.
-// Create — opened with no :id
-//   ?course=<id>  → topic quiz (auto-released when graded)
-//   (no course)   → class test or exam (teacher releases results)
-// Edit — opened with :id
-//   Loads the existing quiz. Category and container are locked.
 export default function QuizBuilder() {
   const navigate = useNavigate()
   const { id: editId } = useParams()
@@ -33,6 +27,9 @@ export default function QuizBuilder() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [minutes, setMinutes] = useState(30)
+  const [totalMarks, setTotalMarks] = useState('20')
+  const [guardMode, setGuardMode] = useState('RECORD')
+  const [guardLimit, setGuardLimit] = useState(3)
   const [questions, setQuestions] = useState([blank('MULTIPLE_CHOICE')])
 
   const [courses, setCourses] = useState([])
@@ -41,7 +38,6 @@ export default function QuizBuilder() {
   const [busy, setBusy] = useState(false)
   const [loaded, setLoaded] = useState(!isEdit)
 
-  // Edit: load the quiz and its questions.
   useEffect(() => {
     if (!isEdit) return
     setError('')
@@ -53,6 +49,9 @@ export default function QuizBuilder() {
         setTitle(q.title || '')
         setDescription(q.description || '')
         setMinutes(q.timeLimitMinutes ?? 30)
+        setTotalMarks(String(q.totalMarks ?? 0 > 0 ? q.totalMarks : (q.questions ?? []).reduce((n, x) => n + (x.marks ?? 1), 0)))
+        setGuardMode(q.guardMode || 'RECORD')
+        setGuardLimit(q.guardLimit ?? 3)
         const qs = q.questions ?? []
         setQuestions(qs.length > 0
           ? qs.map((item) => {
@@ -75,7 +74,6 @@ export default function QuizBuilder() {
       .catch((err) => setError(err.message))
   }, [isEdit, editId])
 
-  // Load the picker lists.
   useEffect(() => {
     if (isEdit) return
     if (category === 'QUIZ') {
@@ -91,7 +89,6 @@ export default function QuizBuilder() {
     }
   }, [category, lockedCourseId, isEdit, user])
 
-  // Edit needs the picker lists too, so labels can show names.
   useEffect(() => {
     if (!isEdit) return
     if (category === 'QUIZ') listCourses().then(setCourses).catch(() => {})
@@ -115,7 +112,11 @@ export default function QuizBuilder() {
     correct: q.correct >= j && q.correct > 0 ? q.correct - 1 : q.correct,
   })
 
-  const total = questions.reduce((sum, q) => sum + (Number(q.marks) || 0), 0)
+  const sumMarks = questions.reduce((sum, q) => sum + (Number(q.marks) || 0), 0)
+  const cap = Number(totalMarks) || 0
+  const over = cap > 0 && sumMarks > cap
+  const under = cap > 0 && sumMarks < cap
+  const exact = cap > 0 && sumMarks === cap
 
   const toPayload = (q) => q.type === 'MULTIPLE_CHOICE'
     ? {
@@ -136,6 +137,9 @@ export default function QuizBuilder() {
   const save = async (publish) => {
     setError('')
     if (!title.trim()) { setError('Give this a title first.'); return }
+    if (!Number.isInteger(cap) || cap < 1 || cap > 1000) { setError('Total marks must be a whole number between 1 and 1000.'); return }
+    if (over) { setError(`Questions add up to ${sumMarks}, which is more than the total of ${cap}.`); return }
+    if (publish && !exact) { setError(`Questions add up to ${sumMarks}, but the total is ${cap}. They must match exactly before publishing.`); return }
     if (!isEdit) {
       if (category === 'QUIZ' && !courseId) { setError('Choose a topic.'); return }
       if (category !== 'QUIZ' && !classId) { setError('Choose a class.'); return }
@@ -153,7 +157,10 @@ export default function QuizBuilder() {
         title: title.trim(),
         description: description.trim() || null,
         timeLimitMinutes: Number(minutes) || null,
+        totalMarks: cap,
         questions: questions.map(toPayload),
+        guardMode,
+        guardLimit: Number(guardLimit) || 3,
       }
 
       if (isEdit) {
@@ -167,6 +174,9 @@ export default function QuizBuilder() {
           title: title.trim(),
           description: description.trim() || null,
           timeLimitMinutes: Number(minutes) || null,
+          totalMarks: cap,
+          guardMode,
+          guardLimit: Number(guardLimit) || 3,
         })
         await updateQuiz(created.id, body)
         if (publish) await publishQuiz(created.id)
@@ -250,13 +260,43 @@ export default function QuizBuilder() {
           <input type="number" min="1" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
         </label>
 
+        <label className="field">
+          <span>Total marks</span>
+          <input
+            type="number"
+            min="1"
+            max="1000"
+            value={totalMarks}
+            onChange={(e) => setTotalMarks(e.target.value)}
+            className={over ? 'is-invalid' : ''}
+            aria-invalid={over}
+          />
+        </label>
+
         <label className="field quiz-meta__wide">
           <span>Instructions</span>
           <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
         </label>
 
+        <div className="quiz-meta__wide guard">
+          <label className="field">
+            <span>If a student leaves the test page</span>
+            <select className="select" value={guardMode} onChange={(e) => setGuardMode(e.target.value)}>
+              <option value="OFF">Do nothing</option>
+              <option value="RECORD">Record it and show it to me</option>
+              <option value="AUTO">Record it and auto-submit after a set number of times</option>
+            </select>
+          </label>
+          {guardMode === 'AUTO' && (
+            <label className="field marks">
+              <span>Submit after</span>
+              <input type="number" min="1" max="10" value={guardLimit} onChange={(e) => setGuardLimit(e.target.value)} />
+            </label>
+          )}
+        </div>
+
         <p className="hint quiz-meta__wide">
-          Students get one attempt. The clock starts when they press Start, and answers are saved as they go.
+          Students get one attempt. The clock starts when they press Start, and answers are only sent when they press Submit.
           {category !== 'QUIZ' && ' Results stay hidden from students until you release them.'}
         </p>
       </section>
@@ -311,10 +351,16 @@ export default function QuizBuilder() {
       {error && <p className="field__error" role="alert">{error}</p>}
 
       <div className="quiz-bar">
-        <span><strong>{questions.length}</strong> questions · <strong>{total}</strong> marks</span>
+        <span>
+          <strong>{questions.length}</strong> {questions.length === 1 ? 'question' : 'questions'} ·{' '}
+          <strong>{sumMarks}</strong>
+          {cap > 0 ? ` of ${cap}` : ''} marks
+          {over && <span className="flag"> — over by {sumMarks - cap}</span>}
+          {under && <span className="flag"> — {cap - sumMarks} marks remaining</span>}
+        </span>
         <div>
-          <button className="btn btn--ghost" onClick={() => save(false)} disabled={busy}>Save draft</button>
-          <button className="btn btn--primary" onClick={() => save(true)} disabled={busy}>
+          <button className="btn btn--ghost" onClick={() => save(false)} disabled={busy || over || cap < 1}>Save draft</button>
+          <button className="btn btn--primary" onClick={() => save(true)} disabled={busy || !exact || cap < 1}>
             {busy ? 'Saving…' : 'Publish'}
           </button>
         </div>

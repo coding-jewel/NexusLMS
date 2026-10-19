@@ -1,3 +1,5 @@
+import { getSubdomain } from '../utils/tenant'
+
 const BASE = '/api'
 const TOKEN_KEY = 'nexuslms.token'
 
@@ -13,15 +15,17 @@ export class ApiError extends Error {
   }
 }
 
-// options.auth = false sends the request without the sign-in token (used for login itself).
-// body can be a plain object (sent as JSON) or FormData (sent as-is, for file uploads).
 async function request(method, path, body, { auth = true } = {}) {
   const isForm = body instanceof FormData
   const headers = {}
-  // For FormData we let the browser set Content-Type with the multipart boundary.
   if (!isForm && body !== undefined) headers['Content-Type'] = 'application/json'
+  
   const token = getToken()
   if (auth && token) headers.Authorization = `Bearer ${token}`
+
+  // THIS IS THE CRUCIAL PART: Attach the subdomain to every request
+  const subdomain = getSubdomain()
+  if (subdomain) headers['X-Tenant-Subdomain'] = subdomain
 
   let res
   try {

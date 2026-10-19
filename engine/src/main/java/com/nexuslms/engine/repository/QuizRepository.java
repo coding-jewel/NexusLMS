@@ -22,6 +22,9 @@ public interface QuizRepository extends MongoRepository<Quiz, String> {
     @Query(value = "{ 'courseId': ?0, 'category': 'QUIZ' }", count = true)
     long countQuizzesByCourseId(String courseId);
 
+    @Query(value = "{ 'courseId': ?0, 'category': 'QUIZ', 'published': true }", count = true)
+    long countPublishedQuizzesByCourseId(String courseId);
+
     @Query(value = "{ 'courseId': ?0, 'category': 'QUIZ' }", exists = true)
     boolean existsQuizByCourseId(String courseId);
 

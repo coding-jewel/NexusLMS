@@ -36,9 +36,15 @@ export default function Gradebook() {
   }, [classId])
 
   const visibleGroups = gb
-    ? gb.groups.filter((g) => filter === 'ALL' || g.key.toUpperCase() === filter)
+    ? gb.groups.filter((g) => {
+        if (filter === 'ALL') return true
+        if (filter === 'TEST') return g.key === 'tests'
+        if (filter === 'EXAM') return g.key === 'exams'
+        return false
+      })
     : []
-  const showOverall = filter === 'ALL'
+    
+  const isAll = filter === 'ALL'
 
   const classAvg = (key) => {
     if (!gb) return null
@@ -92,51 +98,106 @@ export default function Gradebook() {
           </div>
 
           <section className="panel">
-            <div className="table-wrap">
-              <table className="gb">
-                <thead>
-                  <tr>
-                    <th>Student</th>
-                    {visibleGroups.map((g) => (
-                      <th key={g.key} className="gb__group">{g.label}</th>
-                    ))}
-                    {showOverall && <th>Overall</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {gb.rows.map((r) => (
-                    <tr key={r.studentId}>
-                      <td><strong>{r.studentName}</strong></td>
+            {visibleGroups.length === 0 ? (
+              <p className="empty">No {filter === 'TEST' ? 'tests' : 'exams'} recorded yet.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="gb">
+                  <thead>
+                    <tr>
+                      <th rowSpan={isAll ? 1 : 2}>Student</th>
                       {visibleGroups.map((g) => (
-                        <td key={g.key} className={r.subtotals[g.key] == null ? 'gb__empty' : ''}>
-                          {pct(r.subtotals[g.key])}
-                        </td>
+                        isAll ? (
+                          <th key={g.key}>{g.label}</th>
+                        ) : (
+                          <th key={g.key} colSpan={g.items.length + 1} className="gb__group">
+                            {g.label}
+                          </th>
+                        )
                       ))}
-                      {showOverall && (
-                        <td>
-                          <span className={`badge ${r.overall != null && r.overall >= 50 ? 'badge--live' : ''}`}>
-                            {pct(r.overall)}
-                          </span>
-                          {r.provisional && <small className="sub">so far</small>}
-                        </td>
-                      )}
+                      {isAll && <th>Overall</th>}
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td>Class average</td>
-                    {visibleGroups.map((g) => (
-                      <td key={g.key} className="gb__sub">{pct(classAvg(g.key))}</td>
+                    {!isAll && (
+                      <tr>
+                        {visibleGroups.flatMap((g) => [
+                          ...g.items.map((it) => (
+                            <th key={it.id}>{it.title}<small>/{it.totalMarks}</small></th>
+                          )),
+                          <th key={`${g.key}-sub`} className="gb__sub">Subtotal</th>,
+                        ])}
+                      </tr>
+                    )}
+                  </thead>
+                  <tbody>
+                    {gb.rows.map((r) => (
+                      <tr key={r.studentId}>
+                        <td><strong>{r.studentName}</strong></td>
+                        {visibleGroups.flatMap((g) => {
+                          if (isAll) {
+                            return [
+                              <td key={g.key} className={r.subtotals[g.key] == null ? 'gb__empty' : ''}>
+                                {pct(r.subtotals[g.key])}
+                              </td>
+                            ]
+                          } else {
+                            return [
+                              ...g.items.map((it) => {
+                                const v = r.scores[it.id]
+                                return (
+                                  <td key={it.id} className={v === undefined ? 'gb__empty' : ''}>
+                                    {v ?? '—'}
+                                  </td>
+                                )
+                              }),
+                              <td key={`${g.key}-sub`} className="gb__sub">
+                                {pct(r.subtotals[g.key])}
+                              </td>,
+                            ]
+                          }
+                        })}
+                        {isAll && (
+                          <td>
+                            <span className={`badge ${r.overall != null && r.overall >= 50 ? 'badge--live' : ''}`}>
+                              {pct(r.overall)}
+                            </span>
+                            {r.provisional && <small className="sub">so far</small>}
+                          </td>
+                        )}
+                      </tr>
                     ))}
-                    {showOverall && <td>{pct(overallAvg())}</td>}
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td>Class average</td>
+                      {visibleGroups.flatMap((g) => {
+                        if (isAll) {
+                          return [
+                            <td key={g.key} className="gb__sub">
+                              {pct(classAvg(g.key))}
+                            </td>
+                          ]
+                        } else {
+                          return [
+                            ...g.items.map((it) => {
+                              const scores = gb.rows.map(r => r.scores[it.id]).filter(s => s != null)
+                              const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null
+                              return <td key={it.id}>{avg != null ? Math.round(avg) : '—'}</td>
+                            }),
+                            <td key={`${g.key}-sub`} className="gb__sub">
+                              {pct(classAvg(g.key))}
+                            </td>,
+                          ]
+                        }
+                      })}
+                      {isAll && <td>{pct(overallAvg())}</td>}
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
           </section>
 
-          {showOverall && gb.rows.some((r) => r.provisional) && (
+          {isAll && gb.rows.some((r) => r.provisional) && (
             <p className="gb-note">
               “So far” means a group has no scores yet. The overall uses only the groups that have scores, with their weights scaled to 100.
             </p>

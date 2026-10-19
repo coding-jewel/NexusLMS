@@ -4,7 +4,6 @@ import { useAuth } from '../auth/AuthContext'
 import { useTenant } from '../tenant/TenantContext'
 import '../styles/admin.css'
 
-// Add each page here as it gets built.
 const NAV = {
   admin: [
     ['Overview', '/admin'],
@@ -13,6 +12,7 @@ const NAV = {
     ['Students', '/admin/students'],
     ['Topics', '/admin/courses'],
     ['Grading', '/admin/grading'],
+    ['Settings', '/settings'],
   ],
   teacher: [
     ['Overview', '/teacher'],
@@ -21,10 +21,14 @@ const NAV = {
     ['Assignments', '/teacher/assignments'],
     ['Tests & Exams', '/teacher/quizzes'],
     ['Gradebook', '/teacher/gradebook'],
+    ['Settings', '/settings'],
   ],
   student: [
-    ['My Topics', '/student'],
+    ['Overview', '/student'],
+    ['My Classes', '/student/topics'],
+    ['Tests & Exams', '/student/assessments'],
     ['My Grades', '/student/grades'],
+    ['Settings', '/settings'],
   ],
 }
 const LABELS = { admin: 'Admin', teacher: 'Teacher', student: 'Student' }

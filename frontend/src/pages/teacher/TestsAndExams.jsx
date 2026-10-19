@@ -14,7 +14,7 @@ export default function TestsAndExams() {
   const [busyId, setBusyId] = useState(null)
   const [filter, setFilter] = useState('ALL') // ALL | TEST | EXAM
 
-  const [confirm, setConfirm] = useState(null) // the quiz being deleted
+  const [confirm, setConfirm] = useState(null)
   const [confirmError, setConfirmError] = useState('')
 
   const load = () => {
@@ -112,7 +112,7 @@ export default function TestsAndExams() {
                           <button
                             className="btn btn--ghost btn--sm"
                             onClick={() => toggleRelease(q)}
-                            disabled={busyId === q.id}
+                            disabled={busyId === q.id || q.questions?.length === 0}
                           >
                             {q.resultsReleased ? 'Hide results' : 'Release results'}
                           </button>
@@ -122,7 +122,11 @@ export default function TestsAndExams() {
                         </td>
                         <td className="cell-wrap">
                           <div className="row-actions">
-                            <Link to={`/teacher/quizzes/${q.id}/edit`} className="btn btn--ghost btn--sm">Edit</Link>
+                            <Link
+                              to={`/teacher/quizzes/${q.id}/edit`}
+                              className={`btn btn--ghost btn--sm ${q.published ? 'btn--disabled' : ''}`}
+                              style={q.published ? { pointerEvents: 'none', opacity: 0.5 } : {}}
+                            >Edit</Link>
                             <Link to={`/teacher/quizzes/${q.id}/mark`} className="btn btn--ghost btn--sm">Mark</Link>
                             <button className="btn btn--ghost btn--sm btn--danger" onClick={() => openConfirm(q)}>Delete</button>
                           </div>

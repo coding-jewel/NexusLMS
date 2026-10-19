@@ -2,7 +2,7 @@ package com.nexuslms.engine;
 
 import com.nexuslms.engine.dto.AuthResponse;
 import com.nexuslms.engine.dto.LoginRequest;
-import com.nexuslms.engine.exception.InvalidRequestException;
+import com.nexuslms.engine.exception.PendingApprovalException;
 import com.nexuslms.engine.models.Role;
 import com.nexuslms.engine.models.Tenant;
 import com.nexuslms.engine.models.User;
@@ -119,7 +119,8 @@ class AuthServiceTest {
         when(userRepository.findByEmailAndTenantId("a@b.com", "t1")).thenReturn(Optional.of(waitingTeacher()));
         when(passwordEncoder.matches("pw", "hash")).thenReturn(true);
 
-        InvalidRequestException e = assertThrows(InvalidRequestException.class, () -> service.login(request));
+        // The expected exception was updated to PendingApprovalException
+        PendingApprovalException e = assertThrows(PendingApprovalException.class, () -> service.login(request));
 
         assertTrue(e.getMessage().contains("waiting for approval"));
         verify(jwtService, never()).generateToken(any(), any(), any(), any());

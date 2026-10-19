@@ -6,7 +6,7 @@
 .course-card__top { padding: 1.3rem 1.3rem 1.6rem; color: #fff; display: grid; gap: .25rem; min-height: 110px; align-content: end; }
 .course-card__top h2 { color: #fff; font-size: 1.3rem; }
 .course-card__top span { font-size: .9rem; opacity: .9; }
-.course-card__link { display: block; }
+.course-card__link { display: block; color: inherit; }
 .tone-0 { background: var(--indigo-600); }
 .tone-1 { background: var(--teal-700); }
 .tone-2 { background: #7c3aed; }

@@ -2,6 +2,7 @@ package com.nexuslms.engine.controller;
 
 import com.nexuslms.engine.dto.QuizRequest;
 import com.nexuslms.engine.dto.QuizUpdateRequest;
+import com.nexuslms.engine.dto.StudentQuizResponse;
 import com.nexuslms.engine.models.Quiz;
 import com.nexuslms.engine.security.AuthUser;
 import com.nexuslms.engine.service.CloudinaryService;
@@ -37,8 +38,6 @@ public class QuizController {
         return ResponseEntity.status(HttpStatus.CREATED).body(quizService.create(auth, request));
     }
 
-    // --- topic-level quizzes ---
-
     @GetMapping("/course/{courseId}")
     public ResponseEntity<List<Quiz>> quizzesByCourse(@PathVariable String courseId) {
         return ResponseEntity.ok(quizService.getQuizzesByCourse(courseId));
@@ -48,8 +47,6 @@ public class QuizController {
     public ResponseEntity<List<Quiz>> publishedQuizzesByCourse(@PathVariable String courseId) {
         return ResponseEntity.ok(quizService.getPublishedQuizzesByCourse(courseId));
     }
-
-    // --- class-level tests and exams ---
 
     @GetMapping("/class/{classId}/tests")
     public ResponseEntity<List<Quiz>> testsByClass(@PathVariable String classId) {
@@ -71,15 +68,11 @@ public class QuizController {
         return ResponseEntity.ok(quizService.getPublishedExamsByClass(classId));
     }
 
-    // --- teacher's combined list ---
-
     @PreAuthorize("hasRole('TEACHER')")
     @GetMapping("/mine")
     public ResponseEntity<List<Quiz>> mine(@AuthenticationPrincipal AuthUser auth) {
         return ResponseEntity.ok(quizService.getTestsAndExamsByTeacher(auth.userId()));
     }
-
-    // --- shared ---
 
     @GetMapping("/{id}")
     public ResponseEntity<Quiz> getQuizById(@PathVariable String id) {
@@ -88,7 +81,13 @@ public class QuizController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // Replaces title, description, time limit, and the full question list.
+    /** Student-safe view — questions with the correct answers stripped out. */
+    @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping("/{id}/take")
+    public StudentQuizResponse take(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        return quizService.getQuizForStudent(auth, id);
+    }
+
     @PreAuthorize("hasRole('TEACHER')")
     @PutMapping("/{id}")
     public ResponseEntity<Quiz> update(@PathVariable String id,

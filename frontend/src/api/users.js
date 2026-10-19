@@ -1,6 +1,5 @@
 import { api } from './client'
 
-// Admin only. Optional filters: { role: 'STUDENT' | 'TEACHER', classId }
 export const listUsers = ({ role, classId } = {}) => {
   const params = new URLSearchParams()
   if (role) params.set('role', role)
@@ -18,3 +17,8 @@ export const deleteUser = (id) => api.delete(`/users/${encodeURIComponent(id)}`)
 export const getTeacherCode = () => api.get('/admin/teacher-code')
 
 export const regenerateTeacherCode = () => api.post('/admin/teacher-code/regenerate')
+
+// --- Settings ---
+
+export const changePassword = (currentPassword, newPassword) => 
+  api.put('/users/me/password', { currentPassword, newPassword })

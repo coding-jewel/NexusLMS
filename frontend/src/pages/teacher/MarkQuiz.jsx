@@ -22,8 +22,8 @@ const autoScore = (quiz, attempt) => {
   })
   return total
 }
-const totalMarks = (quiz) => (quiz?.questions ?? []).reduce((n, q) => n + (q.marks ?? 1), 0)
-const openMax = (quiz) => (quiz?.questions ?? []).filter((q) => q.type === 'OPEN_ENDED').reduce((n, q) => n + (q.marks ?? 1), 0)
+
+const totalMarks = (quiz) => quiz?.totalMarks ?? (quiz?.questions ?? []).reduce((n, q) => n + (q.marks ?? 1), 0)
 
 export default function MarkQuiz() {
   const { qid: quizId } = useParams()
@@ -31,7 +31,9 @@ export default function MarkQuiz() {
   const [attempts, setAttempts] = useState([])
   const [studentsById, setStudentsById] = useState({})
   const [selectedId, setSelectedId] = useState(null)
-  const [extra, setExtra] = useState('')
+  
+  const [extraMarks, setExtraMarks] = useState({})
+  
   const [error, setError] = useState('')
   const [saveError, setSaveError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -46,7 +48,6 @@ export default function MarkQuiz() {
         setQuiz(q)
         setAttempts(list)
 
-        // Student names come from the topic's students (QUIZ) or the class's students (TEST / EXAM).
         let people = []
         try {
           if (q.category === 'QUIZ' && q.courseId) {
@@ -66,7 +67,7 @@ export default function MarkQuiz() {
         const first = list.find((a) => !a.graded) ?? list[0]
         if (first) {
           setSelectedId(first.id)
-          setExtra(String(Math.max((first.score ?? 0) - autoScore(q, first), 0)))
+          initExtraMarks(q, first)
         }
         setLoaded(true)
       })
@@ -74,10 +75,30 @@ export default function MarkQuiz() {
     return () => { alive = false }
   }, [quizId])
 
+  const initExtraMarks = (q, attempt) => {
+    const currentExtra = Math.max((attempt.score ?? 0) - autoScore(q, attempt), 0)
+    let remaining = currentExtra
+    const marks = {}
+    q.questions.forEach((question, i) => {
+      if (question.type === 'OPEN_ENDED') {
+        const max = question.marks ?? 1
+        const val = Math.min(remaining, max)
+        marks[i] = val
+        remaining -= val
+      }
+    })
+    setExtraMarks(marks)
+  }
+
   const pick = (a) => {
     setSelectedId(a.id)
-    setExtra(String(Math.max((a.score ?? 0) - autoScore(quiz, a), 0)))
+    initExtraMarks(quiz, a)
     setSaveError('')
+  }
+
+  const handleMarkChange = (index, val, max) => {
+    const num = Math.max(0, Math.min(Number(val) || 0, max))
+    setExtraMarks({ ...extraMarks, [index]: num })
   }
 
   const save = async (e) => {
@@ -86,8 +107,10 @@ export default function MarkQuiz() {
     setBusy(true)
     try {
       const sel = attempts.find((a) => a.id === selectedId)
+      const totalExtra = Object.values(extraMarks).reduce((a, b) => a + Number(b || 0), 0)
       const currentExtra = Math.max((sel.score ?? 0) - autoScore(quiz, sel), 0)
-      const delta = Number(extra) - currentExtra
+      const delta = totalExtra - currentExtra
+      
       const updated = await gradeAttempt(selectedId, { additionalScore: delta })
       setAttempts(attempts.map((a) => (a.id === selectedId ? updated : a)))
     } catch (err) {
@@ -162,45 +185,63 @@ export default function MarkQuiz() {
             <p className="empty">Pick an attempt on the left.</p>
           ) : (
             <>
-              <h2>{studentName(sel.studentId)}</h2>
+              <div className="panel__head">
+                <h2>{studentName(sel.studentId)}</h2>
+                {quiz.resultsReleased && <span className="badge badge--live">Results released</span>}
+              </div>
               <p className="muted-text">Submitted {fmtWhen(sel.attemptedAt)}</p>
+              
               <ol className="answers">
                 {quiz.questions.map((q, i) => {
                   const ans = sel.answers?.[String(i)]
                   const right = q.type === 'MULTIPLE_CHOICE' && ans === q.correctAnswer
+                  const max = q.marks ?? 1
+                  
                   return (
-                    <li key={i}>
-                      <p><strong>{q.text}</strong> <small>({q.marks ?? 1} marks)</small></p>
+                    <li key={i} style={{ marginBottom: '1.5rem' }}>
+                      <p><strong>{q.text}</strong> <small>({max} marks)</small></p>
+                      
                       {q.type === 'MULTIPLE_CHOICE' ? (
                         <p className={`ans ${right ? 'ans--right' : 'ans--wrong'}`}>
                           {ans ?? '—'} {right ? '✓ Correct' : `✗ Correct answer: ${q.correctAnswer}`}
                         </p>
                       ) : (
-                        <p className="sub-text">{ans ?? <em>No answer</em>}</p>
+                        <>
+                          <p className="sub-text" style={{ marginBottom: '0.5rem' }}>{ans ?? <em>No answer</em>}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Marks:</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max={max}
+                              value={extraMarks[i] ?? ''}
+                              onChange={(e) => handleMarkChange(i, e.target.value, max)}
+                              disabled={quiz.resultsReleased || busy}
+                              style={{ width: '80px', padding: '0.4rem', borderRadius: '4px', border: '1px solid var(--slate-200)' }}
+                            />
+                            <span style={{ fontSize: '0.9rem', color: 'var(--slate-500)' }}>out of {max}</span>
+                          </div>
+                        </>
                       )}
                     </li>
                   )
                 })}
               </ol>
+
               <form className="modal__form" onSubmit={save}>
-                <label className="field marks">
-                  <span>Marks for open-ended (max {openMax(quiz)})</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max={openMax(quiz)}
-                    value={extra}
-                    onChange={(e) => setExtra(e.target.value)}
-                    required
-                  />
-                </label>
-                <p className="hint">
-                  Total = {autoScore(quiz, sel)} auto + {Number(extra) || 0} yours ={' '}
-                  <strong>{autoScore(quiz, sel) + (Number(extra) || 0)}/{totalMarks(quiz)}</strong>
-                </p>
+                <div className="hint" style={{ padding: '1rem', background: 'var(--slate-50)', borderRadius: '8px' }}>
+                  <p style={{ marginBottom: '0.5rem' }}><strong>Summary</strong></p>
+                  <p>Auto-marked (MCQs): {autoScore(quiz, sel)}</p>
+                  <p>Manual marks: {Object.values(extraMarks).reduce((a, b) => a + Number(b || 0), 0)}</p>
+                  <p style={{ marginTop: '0.5rem', fontWeight: 600 }}>
+                    Total: {autoScore(quiz, sel) + Object.values(extraMarks).reduce((a, b) => a + Number(b || 0), 0)} / {totalMarks(quiz)}
+                  </p>
+                </div>
+                
                 {saveError && <p className="field__error" role="alert">{saveError}</p>}
-                <button className="btn btn--primary" type="submit" disabled={busy}>
-                  {busy ? 'Saving…' : (sel.graded ? 'Update marks' : 'Save marks')}
+                
+                <button className="btn btn--primary" type="submit" disabled={busy || quiz.resultsReleased}>
+                  {quiz.resultsReleased ? 'Results Released' : (busy ? 'Saving…' : (sel.graded ? 'Update marks' : 'Save marks'))}
                 </button>
               </form>
             </>
