@@ -1,28 +1,40 @@
 import { api } from './client'
 
-export const listAttemptsByQuiz = (quizId) =>
-  api.get(`/quiz-attempts/quiz/${encodeURIComponent(quizId)}`)
+export const startQuizAttempt = (quizId) => 
+  api.post('/quiz-attempts/start', { quizId })
 
-export const listUngradedAttempts = (quizId) =>
-  api.get(`/quiz-attempts/quiz/${encodeURIComponent(quizId)}/ungraded`)
+export const submitQuizAttempt = (attemptId, answers) => 
+  api.post(`/quiz-attempts/${encodeURIComponent(attemptId)}/submit`, { answers })
 
-// The signed-in student's own attempt. 404 means they haven't attempted.
-export const getMyAttempt = async (quizId) => {
-  try {
-    return await api.get(`/quiz-attempts/quiz/${encodeURIComponent(quizId)}/mine`)
-  } catch (err) {
-    if (err.status === 404) return null
-    throw err
-  }
+// NEW: Abandon endpoint using fetch with keepalive for tab close
+export const abandonQuizAttempt = (attemptId) => {
+  const token = localStorage.getItem('token')
+  return fetch(`/api/quiz-attempts/${encodeURIComponent(attemptId)}/abandon`, {
+    method: 'POST',
+    keepalive: true,
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
 }
 
-export const getAttempt = (id) => api.get(`/quiz-attempts/${encodeURIComponent(id)}`)
+export const getMyAttempt = (quizId) => 
+  api.get(`/quiz-attempts/quiz/${encodeURIComponent(quizId)}/mine`)
 
-// Body: { quizId, answers, leftPage }
-export const submitAttempt = (data) => api.post('/quiz-attempts', data)
+export const listMyAttempts = () => 
+  api.get('/quiz-attempts/mine')
 
-// Body: { additionalScore }
-export const gradeAttempt = (id, data) =>
-  api.patch(`/quiz-attempts/${encodeURIComponent(id)}/grade`, data)
+export const listAttemptsByQuiz = (quizId) => 
+  api.get(`/quiz-attempts/quiz/${encodeURIComponent(quizId)}`)
 
-export const deleteAttempt = (id) => api.delete(`/quiz-attempts/${encodeURIComponent(id)}`)
+export const listUngradedAttempts = (quizId) => 
+  api.get(`/quiz-attempts/quiz/${encodeURIComponent(quizId)}/ungraded`)
+
+export const getAttemptById = (id) => 
+  api.get(`/quiz-attempts/${encodeURIComponent(id)}`)
+
+export const gradeAttempt = (attemptId, payload) => 
+  api.patch(`/quiz-attempts/${encodeURIComponent(attemptId)}/grade`, payload)
+
+export const deleteAttempt = (id) => 
+  api.delete(`/quiz-attempts/${encodeURIComponent(id)}`)

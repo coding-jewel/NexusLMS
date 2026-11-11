@@ -68,6 +68,13 @@ public class QuizController {
         return ResponseEntity.ok(quizService.getPublishedExamsByClass(classId));
     }
 
+    // ADDED: Endpoint for both students and teachers to fetch published tests & exams
+    @PreAuthorize("hasAnyRole('TEACHER', 'STUDENT')")
+    @GetMapping("/class/{classId}/published")
+    public ResponseEntity<List<Quiz>> publishedTestsAndExamsByClass(@PathVariable String classId) {
+        return ResponseEntity.ok(quizService.getPublishedTestsAndExamsByClass(classId));
+    }
+
     @PreAuthorize("hasRole('TEACHER')")
     @GetMapping("/mine")
     public ResponseEntity<List<Quiz>> mine(@AuthenticationPrincipal AuthUser auth) {

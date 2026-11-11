@@ -3,7 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import AppLayout from '../../components/AppLayout'
 import { getAssignment } from '../../api/assignments'
 import { listSubmissionsByAssignment, gradeSubmission } from '../../api/submissions'
-import { getCourse, getCoursePeople } from '../../api/courses'
+import { getCourse } from '../../api/courses'
+import { getClassPeople } from '../../api/classes'
 import '../../styles/teacher.css'
 
 const fmtWhen = (v) => {
@@ -35,25 +36,45 @@ export default function GradeSubmissions() {
   useEffect(() => {
     let alive = true
     setError('')
-    Promise.all([
-      getAssignment(assignmentId),
-      getCourse(courseId),
-      listSubmissionsByAssignment(assignmentId),
-      getCoursePeople(courseId),
-    ]).then(([a, c, list, people]) => {
-      if (!alive) return
-      setAssignment(a)
-      setSubs(list)
-      const map = {}
-      ;(people.students ?? []).forEach((u) => { map[u.id] = u.name })
-      setStudentsById(map)
-      const first = list.find((s) => !s.graded) ?? list[0]
-      if (first) {
-        setSelectedId(first.id)
-        setForm({ grade: first.grade ?? '', feedback: first.feedback ?? '' })
+
+    const loadData = async () => {
+      try {
+        // 1. Fetch assignment, course, and submissions in parallel
+        const [a, c, list] = await Promise.all([
+          getAssignment(assignmentId),
+          getCourse(courseId),
+          listSubmissionsByAssignment(assignmentId),
+        ])
+
+        if (!alive) return
+
+        setAssignment(a)
+        setSubs(list)
+
+        // 2. Fetch the class people using the classId from the course
+        if (c.classId) {
+          const people = await getClassPeople(c.classId)
+          if (!alive) return
+          
+          const map = {}
+          ;(people.students ?? []).forEach((u) => { map[u.id] = u.name })
+          setStudentsById(map)
+        }
+
+        // 3. Select the first ungraded submission, or the first one in the list
+        const first = list.find((s) => !s.graded) ?? list[0]
+        if (first) {
+          setSelectedId(first.id)
+          setForm({ grade: first.grade ?? '', feedback: first.feedback ?? '' })
+        }
+        
+        setLoaded(true)
+      } catch (err) {
+        if (alive) setError(err.message)
       }
-      setLoaded(true)
-    }).catch((err) => alive && setError(err.message))
+    }
+
+    loadData()
     return () => { alive = false }
   }, [courseId, assignmentId])
 
@@ -91,7 +112,7 @@ export default function GradeSubmissions() {
         <section className="panel">
           <div className="empty">
             <p className="field__error" role="alert">{error}</p>
-            <Link to="/teacher/assignments" className="btn btn--ghost">Back to assignments</Link>
+            <Link to="/teacher/classes" className="btn btn--ghost">Back to classes</Link>
           </div>
         </section>
       </AppLayout>
@@ -114,6 +135,14 @@ export default function GradeSubmissions() {
   return (
     <AppLayout role="teacher" title={assignment.title}>
       <Link to={`/teacher/courses/${courseId}`} className="back">← Back to topic</Link>
+
+      {/* FIXED: Moved instructions to the top, above the layout */}
+      {(assignment.description || assignment.instructions) && (
+        <div className="assignment-instructions">
+          <h3 className="subhead" style={{ marginTop: 0 }}>Assignment Instructions</h3>
+          <p>{assignment.description || assignment.instructions}</p>
+        </div>
+      )}
 
       <div className="grade-layout">
         <section className="panel">
@@ -148,7 +177,8 @@ export default function GradeSubmissions() {
           ) : (
             <>
               <h2>{studentName(sel.studentId)}</h2>
-              <p className="muted-text">Submitted {fmtWhen(sel.submittedAt)}</p>
+              <p className="muted-text" style={{ marginBottom: '1.5rem' }}>Submitted {fmtWhen(sel.submittedAt)}</p>
+              
               {sel.text && <p className="sub-text">{sel.text}</p>}
               {sel.fileUrls?.length > 0 && (
                 <div className="files">

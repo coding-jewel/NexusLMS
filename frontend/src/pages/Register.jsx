@@ -5,6 +5,7 @@ import PasswordField from '../components/PasswordField'
 import { generateSubdomain, fullSlug } from '../utils/subdomain'
 import { schoolUrl } from '../utils/tenant'
 import { checkSubdomain, startRegistration, verifyRegistration, resendCode } from '../api/registration'
+import { PASSWORD_REGEX, PASSWORD_HINT } from '../utils/password'
 import '../styles/auth.css'
 
 export default function Register() {
@@ -26,7 +27,6 @@ export default function Register() {
 
   const slug = edited ? subdomain : generateSubdomain(schoolName)
 
-  // Live check: waits half a second after typing stops, and only the latest answer is used.
   useEffect(() => {
     if (!slug) { setCheck({ state: 'idle' }); return }
     setCheck({ state: 'checking' })
@@ -42,7 +42,6 @@ export default function Register() {
     return () => { current = false; clearTimeout(timer) }
   }, [slug])
 
-  // If the short address is taken, offer the full school name when that one is free.
   useEffect(() => {
     setSuggestion(null)
     if (check.state !== 'unavailable' || edited) return
@@ -106,7 +105,8 @@ export default function Register() {
   }
 
   const mismatch = confirm !== '' && confirm !== password
-  const canSubmit = !busy && check.state === 'available' && schoolName.trim() && email && password.length >= 8 && password === confirm
+  const strongPw = PASSWORD_REGEX.test(password)
+  const canSubmit = !busy && check.state === 'available' && schoolName.trim() && email && strongPw && password === confirm
 
   return (
     <div className="auth">
@@ -170,13 +170,16 @@ export default function Register() {
               <span>School email</span>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@school.edu" required />
             </label>
+            
             <PasswordField
               label="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
+              placeholder={PASSWORD_HINT}
               autoComplete="new-password"
               minLength={8}
+              // FIXED: Show error message if typing and invalid
+              error={password.length > 0 && !strongPw ? PASSWORD_HINT : ''}
             />
             <PasswordField
               label="Confirm password"
@@ -199,7 +202,6 @@ export default function Register() {
           <form className="auth__card" onSubmit={handleVerify}>
             <h2>Check your email</h2>
             <p className="auth__sub">We sent a 6-digit code to <strong>{email}</strong>. It expires in 15 minutes.</p>
-            {import.meta.env.DEV && <p className="auth__note">Development: the code is printed in the backend console.</p>}
 
             <label className="field">
               <span>Verification code</span>

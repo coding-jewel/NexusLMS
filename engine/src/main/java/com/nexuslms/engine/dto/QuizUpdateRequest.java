@@ -26,9 +26,5 @@ public record QuizUpdateRequest(
         Integer totalMarks,
 
         @NotNull(message = "Questions are required.")
-        List<Question> questions,
-
-        String guardMode,
-
-        Integer guardLimit
+        List<Question> questions
 ) {}

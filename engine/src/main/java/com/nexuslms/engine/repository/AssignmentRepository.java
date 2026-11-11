@@ -24,4 +24,8 @@ public interface AssignmentRepository extends MongoRepository<Assignment, String
 
     @Query(value = "{ 'courseId': ?0 }", count = true)
     long countByCourseId(String courseId);
+
+    // ADDED: Deletes all assignments tied to a specific course
+    @Query(value = "{ 'courseId': ?0 }", delete = true)
+    void deleteByCourseId(String courseId);
 }

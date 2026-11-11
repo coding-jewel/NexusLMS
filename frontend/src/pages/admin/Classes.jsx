@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout'
-import CopyButton from '../../components/CopyButton'
 import Modal from '../../components/Modal'
 import { useTenant } from '../../tenant/TenantContext'
 import { schoolUrl } from '../../utils/tenant'
 import {
   listClasses,
   createClass,
+  updateClass,
   regenerateCode,
   deleteClass,
   assignTeacher,
@@ -19,22 +20,43 @@ const formatDate = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { d
 
 export default function Classes() {
   const { subdomain } = useTenant()
-  const [classes, setClasses] = useState(null) // null while loading
-  const [teachers, setTeachers] = useState([]) // loaded once, used by the assign modal
+  const [classes, setClasses] = useState(null)
+  const [teachers, setTeachers] = useState([])
   const [loadError, setLoadError] = useState('')
 
   const [createOpen, setCreateOpen] = useState(false)
   const [form, setForm] = useState({ name: '', description: '' })
   const [formError, setFormError] = useState('')
 
-  const [confirm, setConfirm] = useState(null) // { kind: 'regenerate' | 'delete', cls }
+  const [editOpen, setEditOpen] = useState(false)
+  const [editForm, setEditForm] = useState({ id: '', name: '', description: '' })
+  const [editError, setEditError] = useState('')
+
+  const [confirm, setConfirm] = useState(null)
   const [confirmError, setConfirmError] = useState('')
 
-  const [assignFor, setAssignFor] = useState(null) // the class whose teachers we're editing
-  const [picked, setPicked] = useState([]) // teacher ids currently checked
+  const [assignFor, setAssignFor] = useState(null)
+  const [picked, setPicked] = useState([])
   const [assignError, setAssignError] = useState('')
 
+  const [activeMenu, setActiveMenu] = useState(null)
+  const [menuCoords, setMenuCoords] = useState({ top: 0, right: 0 })
+  const [copiedId, setCopiedId] = useState(null)
+
   const [busy, setBusy] = useState(false)
+
+  // NEW: Close the dropdown menu when the user scrolls
+  useEffect(() => {
+    const handleScroll = () => {
+      if (activeMenu) {
+        setActiveMenu(null)
+      }
+    }
+    
+    // 'true' enables capturing phase to catch scrolls inside the table-wrap as well
+    window.addEventListener('scroll', handleScroll, true)
+    return () => window.removeEventListener('scroll', handleScroll, true)
+  }, [activeMenu])
 
   const load = () => {
     setLoadError('')
@@ -50,6 +72,25 @@ export default function Classes() {
 
   const invite = (code) => schoolUrl(subdomain, `/join?code=${encodeURIComponent(code)}`)
 
+  const handleCopy = (text, id) => {
+    navigator.clipboard.writeText(text)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const toggleMenu = (e, id) => {
+    if (activeMenu === id) {
+      setActiveMenu(null)
+      return
+    }
+    const rect = e.currentTarget.getBoundingClientRect()
+    setMenuCoords({
+      top: rect.bottom + 4,
+      right: window.innerWidth - rect.right
+    })
+    setActiveMenu(id)
+  }
+
   const openCreate = () => { setForm({ name: '', description: '' }); setFormError(''); setCreateOpen(true) }
 
   const handleCreate = async (e) => {
@@ -62,6 +103,31 @@ export default function Classes() {
       setCreateOpen(false)
     } catch (err) {
       setFormError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const openEdit = (cls) => {
+    setEditForm({ id: cls.id, name: cls.name, description: cls.description || '' })
+    setEditError('')
+    setEditOpen(true)
+  }
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault()
+    if (!editForm.name.trim()) return
+    setEditError('')
+    setBusy(true)
+    try {
+      const updated = await updateClass(editForm.id, {
+        name: editForm.name.trim(),
+        description: editForm.description.trim() || null
+      })
+      setClasses(classes.map(c => c.id === updated.id ? updated : c))
+      setEditOpen(false)
+    } catch (err) {
+      setEditError(err.message)
     } finally {
       setBusy(false)
     }
@@ -89,8 +155,6 @@ export default function Classes() {
     }
   }
 
-  // --- assign teachers ---
-
   const openAssign = (cls) => {
     setPicked([...(cls.teacherIds ?? [])])
     setAssignError('')
@@ -110,7 +174,6 @@ export default function Classes() {
       const toAdd = [...after].filter((id) => !before.has(id))
       const toRemove = [...before].filter((id) => !after.has(id))
 
-      // Fire one at a time so the last response is the freshest class state.
       let latest = assignFor
       for (const id of toAdd) latest = await assignTeacher(assignFor.id, id)
       for (const id of toRemove) latest = await removeTeacher(assignFor.id, id)
@@ -143,7 +206,7 @@ export default function Classes() {
           <p className="empty">No classes yet. Create your first class to get a join code.</p>
         ) : (
           <div className="table-wrap">
-            <table>
+            <table className="table-classes">
               <thead>
                 <tr><th>Class</th><th>Join code</th><th>Teachers</th><th>Students</th><th>Created</th><th>Actions</th></tr>
               </thead>
@@ -165,11 +228,16 @@ export default function Classes() {
                       <td>{c.studentCount ?? 0}</td>
                       <td>{formatDate(c.createdAt)}</td>
                       <td className="cell-wrap">
-                        <div className="row-actions">
-                          {c.code && <CopyButton text={c.code} label="Copy code" />}
-                          {c.code && <CopyButton text={invite(c.code)} label="Copy invite link" />}
-                          <button className="btn btn--ghost btn--sm" onClick={() => openConfirm('regenerate', c)}>New code</button>
-                          <button className="btn btn--ghost btn--sm btn--danger" onClick={() => openConfirm('delete', c)}>Delete</button>
+                        <div className="row-actions" style={{ flexWrap: 'nowrap' }}>
+                          <Link to={`/admin/classes/${c.id}`} className="btn btn--primary btn--sm">Open</Link>
+                          <button className="btn btn--ghost btn--sm" onClick={() => openEdit(c)}>Edit</button>
+                          
+                          <button 
+                            className="btn btn--ghost btn--sm" 
+                            onClick={(e) => toggleMenu(e, c.id)}
+                          >
+                            ⋯
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -180,6 +248,38 @@ export default function Classes() {
           </div>
         )}
       </section>
+
+      {activeMenu && (
+        <>
+          <div className="dropdown__backdrop" onClick={() => setActiveMenu(null)} />
+          <div 
+            className="dropdown__menu dropdown__menu--fixed" 
+            style={{ top: menuCoords.top, right: menuCoords.right }}
+          >
+            {classes.find(c => c.id === activeMenu)?.code && (
+              <>
+                <button className="dropdown__item" onClick={() => { handleCopy(classes.find(c => c.id === activeMenu).code, `code-${activeMenu}`); setActiveMenu(null); }}>
+                  {copiedId === `code-${activeMenu}` ? '✓ Copied!' : 'Copy join code'}
+                </button>
+                <button className="dropdown__item" onClick={() => { handleCopy(invite(classes.find(c => c.id === activeMenu).code), `invite-${activeMenu}`); setActiveMenu(null); }}>
+                  {copiedId === `invite-${activeMenu}` ? '✓ Copied!' : 'Copy invite link'}
+                </button>
+                <div className="dropdown__divider" />
+              </>
+            )}
+            
+            <button className="dropdown__item" onClick={() => { openConfirm('regenerate', classes.find(c => c.id === activeMenu)); setActiveMenu(null); }}>
+              Generate new code
+            </button>
+            
+            <div className="dropdown__divider" />
+            
+            <button className="dropdown__item dropdown__item--danger" onClick={() => { openConfirm('delete', classes.find(c => c.id === activeMenu)); setActiveMenu(null); }}>
+              Delete class
+            </button>
+          </div>
+        </>
+      )}
 
       {createOpen && (
         <Modal title="Create class" onClose={() => setCreateOpen(false)}>
@@ -197,6 +297,28 @@ export default function Classes() {
             <button className="btn btn--primary btn--block" type="submit" disabled={busy || !form.name.trim()}>
               {busy ? 'Creating…' : 'Create class'}
             </button>
+          </form>
+        </Modal>
+      )}
+
+      {editOpen && (
+        <Modal title="Edit class" onClose={() => setEditOpen(false)}>
+          <form className="modal__form" onSubmit={handleSaveEdit}>
+            <label className="field">
+              <span>Class name</span>
+              <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} maxLength={60} required />
+            </label>
+            <label className="field">
+              <span>Description</span>
+              <input value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} placeholder="Optional" maxLength={200} />
+            </label>
+            {editError && <p className="field__error" role="alert">{editError}</p>}
+            <div className="confirm-actions">
+              <button className="btn btn--ghost" type="button" onClick={() => setEditOpen(false)}>Cancel</button>
+              <button className="btn btn--primary" type="submit" disabled={busy || !editForm.name.trim()}>
+                {busy ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
           </form>
         </Modal>
       )}

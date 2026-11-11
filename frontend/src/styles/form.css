@@ -1,16 +1,24 @@
 .field { display: grid; gap: .35rem; font-size: .92rem; font-weight: 600; color: var(--slate-900); }
-.field input, .subdomain__edit input {
+.field input, .subdomain__edit input, .select {
   font: 400 1rem var(--font-body); padding: .7rem .85rem; border: 1px solid var(--slate-200);
   border-radius: var(--radius-md); background: #fff; color: var(--slate-900); width: 100%;
+  box-shadow: var(--shadow-sm); transition: all 0.2s ease;
 }
-.field input:focus, .subdomain__edit input:focus { outline: none; border-color: var(--indigo-500); box-shadow: 0 0 0 3px var(--indigo-100); }
+.field input:focus, .subdomain__edit input:focus, .select:focus { 
+  outline: none; border-color: var(--indigo-500); box-shadow: 0 0 0 3px var(--indigo-100); 
+}
+.field input:disabled { background: var(--slate-50); color: var(--slate-500); cursor: not-allowed; box-shadow: none; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.field__error { margin-top: .4rem; font-size: .88rem; color: var(--danger); }
+.field__error { margin-top: .4rem; font-size: .88rem; color: var(--danger); font-weight: 500; }
 
-.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn:disabled { opacity: .6; cursor: not-allowed; transform: none !important; }
 
-/* password field with a show/hide button */
+/* password field */
 .password { position: relative; }
 .password input { padding-right: 2.9rem; }
-.password__toggle { position: absolute; top: 50%; right: .35rem; transform: translateY(-50%); display: grid; place-items: center; width: 2.2rem; height: 2.2rem; border: 0; border-radius: var(--radius-sm); background: none; color: var(--slate-500); cursor: pointer; }
+.password__toggle { position: absolute; top: 50%; right: .35rem; transform: translateY(-50%); display: grid; place-items: center; width: 2.2rem; height: 2.2rem; border: 0; border-radius: var(--radius-sm); background: none; color: var(--slate-500); cursor: pointer; transition: all 0.2s; }
 .password__toggle:hover { color: var(--indigo-600); background: var(--indigo-50); }
+
+@media (max-width: 600px) {
+  .field-row { grid-template-columns: 1fr; }
+}

@@ -1,7 +1,6 @@
 package com.nexuslms.engine;
 
 import com.nexuslms.engine.dto.StatsResponse;
-import com.nexuslms.engine.repository.CourseRepository;
 import com.nexuslms.engine.repository.SchoolClassRepository;
 import com.nexuslms.engine.repository.UserRepository;
 import com.nexuslms.engine.service.StatsService;
@@ -22,7 +21,7 @@ class StatsServiceTest {
 
     @Mock SchoolClassRepository classRepository;
     @Mock UserRepository userRepository;
-    @Mock CourseRepository courseRepository;
+    // REMOVED: @Mock CourseRepository courseRepository;
     @InjectMocks StatsService service;
 
     @Test
@@ -31,14 +30,14 @@ class StatsServiceTest {
         when(userRepository.countByTenantIdAndRoleAndApproved("t1", "TEACHER")).thenReturn(5L);
         when(userRepository.countByTenantIdAndRoleAndNotApproved("t1", "TEACHER")).thenReturn(2L);
         when(userRepository.countByTenantIdAndRole("t1", "STUDENT")).thenReturn(40L);
-        when(courseRepository.countByTenantId("t1")).thenReturn(12L);
+        // REMOVED: when(courseRepository.countByTenantId("t1")).thenReturn(12L);
 
         StatsResponse stats = service.forSchool("t1");
 
         assertEquals(3, stats.classes());
         assertEquals(5, stats.teachers());
         assertEquals(40, stats.students());
-        assertEquals(12, stats.courses());
+        // REMOVED: assertEquals(12, stats.courses());
         assertEquals(2, stats.teachersPending());
     }
 
@@ -46,7 +45,8 @@ class StatsServiceTest {
     void forSchool_ASchoolWithNothingYet_GetsZeros() {
         StatsResponse stats = service.forSchool("brand-new");
 
-        assertEquals(new StatsResponse(0, 0, 0, 0, 0), stats);
+        // FIXED: Changed from 5 arguments to 4 arguments
+        assertEquals(new StatsResponse(0, 0, 0, 0), stats);
     }
 
     @Test
@@ -58,7 +58,7 @@ class StatsServiceTest {
 
         assertEquals(3, stats.classes());
         verify(classRepository, never()).countByTenantId("t2");
-        verify(courseRepository, never()).countByTenantId("t2");
+        // REMOVED: verify(courseRepository, never()).countByTenantId("t2");
         verify(userRepository, never()).countByTenantIdAndRoleAndApproved("t2", "TEACHER");
         verify(userRepository, never()).countByTenantIdAndRoleAndNotApproved("t2", "TEACHER");
         verify(userRepository, never()).countByTenantIdAndRole("t2", "STUDENT");

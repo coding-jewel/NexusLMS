@@ -8,7 +8,6 @@ const CARDS = [
   ['classes', 'Classes'],
   ['courses', 'Topics'],
   ['assignments', 'Assignments'],
-  ['quizzes', 'Tests & Exams'],
 ]
 
 export default function TeacherOverview() {
@@ -22,10 +21,13 @@ export default function TeacherOverview() {
   }
   useEffect(() => { load() }, [])
 
-  const gradeTo = (item) =>
-    item.kind === 'assignment'
-      ? `/teacher/courses/${item.courseId}/assignments/${item.itemId}/grade`
-      : `/teacher/courses/${item.courseId}/quizzes/${item.itemId}/mark`
+  const gradeTo = (item) => {
+    if (item.kind === 'assignment') {
+      return `/teacher/courses/${item.courseId}/assignments/${item.itemId}/grade`
+    }
+    // For both topic quizzes and class exams, route to MarkQuiz
+    return `/teacher/quizzes/${item.itemId}/mark`
+  }
 
   return (
     <AppLayout role="teacher" title="Overview">
@@ -72,12 +74,6 @@ export default function TeacherOverview() {
                 ))}
               </ul>
             )}
-          </section>
-
-          <section className="actions">
-            <Link to="/teacher/courses" className="btn btn--primary">My Topics</Link>
-            <Link to="/teacher/classes" className="btn btn--ghost">My Classes</Link>
-            <Link to="/teacher/assignments" className="btn btn--ghost">All Assignments</Link>
           </section>
         </>
       )}

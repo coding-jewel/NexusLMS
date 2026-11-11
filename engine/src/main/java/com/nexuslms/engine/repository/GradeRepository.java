@@ -32,10 +32,12 @@ public interface GradeRepository extends MongoRepository<Grade, String> {
     @Query("{ 'tenantId': ?0 }")
     List<Grade> findAllByTenantId(String tenantId);
 
-    // Used by the gradebook to fetch every score for a batch of items in one call.
     @Query("{ 'assignmentId': { $in: ?0 } }")
     List<Grade> findAllByAssignmentIdIn(List<String> assignmentIds);
 
     @Query("{ 'quizId': { $in: ?0 } }")
     List<Grade> findAllByQuizIdIn(List<String> quizIds);
+
+    @Query(value = "{ 'courseId': ?0 }", delete = true)
+    void deleteByCourseId(String courseId);
 }

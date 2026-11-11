@@ -5,7 +5,7 @@ import { getCourse } from '../../api/courses'
 import { listAssignmentsByCourse } from '../../api/assignments'
 import { listPublishedQuizzesByCourse } from '../../api/quizzes'
 import { getMySubmission } from '../../api/submissions'
-import { getMyGrades } from '../../api/student'
+import { listMyAttempts } from '../../api/quizAttempts'
 import { useAuth } from '../../auth/AuthContext'
 import '../../styles/teacher.css'
 import '../../styles/student.css'
@@ -32,27 +32,28 @@ export default function StudentCourse() {
   const [course, setCourse] = useState(null)
   const [assignments, setAssignments] = useState([])
   const [quizzes, setQuizzes] = useState([])
-  const [mySubmissions, setMySubmissions] = useState({}) // assignmentId -> submission
-  const [myAttempts, setMyAttempts] = useState({}) // quizId -> grade item
+  const [mySubmissions, setMySubmissions] = useState({}) 
+  const [myAttempts, setMyAttempts] = useState({}) 
   const [tab, setTab] = useState('Materials')
   const [error, setError] = useState('')
+  const [isDeleted, setIsDeleted] = useState(false) // ADDED
 
   useEffect(() => {
     let alive = true
     setError('')
+    setIsDeleted(false)
     Promise.all([
       getCourse(id),
       listAssignmentsByCourse(id),
       listPublishedQuizzesByCourse(id),
-      getMyGrades(),
+      listMyAttempts(),
     ])
-      .then(async ([c, asg, qs, grades]) => {
+      .then(async ([c, asg, qs, attempts]) => {
         if (!alive) return
         setCourse(c)
         setAssignments(asg)
         setQuizzes(qs)
 
-        // Fetch the student's own submission for each assignment (parallel).
         const subResults = await Promise.all(
           asg.map((a) => getMySubmission(a.id).catch(() => null))
         )
@@ -61,17 +62,38 @@ export default function StudentCourse() {
         asg.forEach((a, i) => { if (subResults[i]) subMap[a.id] = subResults[i] })
         setMySubmissions(subMap)
 
-        // Pull quiz summaries from the grades payload.
-        const courseGrades = (grades.courses ?? []).find((g) => g.courseId === id)
         const attemptMap = {}
-        ;(courseGrades?.items ?? []).forEach((it) => {
-          if (it.kind === 'QUIZ') attemptMap[it.itemId] = it
-        })
+        attempts.forEach((a) => { attemptMap[a.quizId] = a })
         setMyAttempts(attemptMap)
       })
-      .catch((err) => alive && setError(err.message))
+      .catch((err) => {
+        if (!alive) return
+        // ADDED: Check for 404 Not Found (deleted topic)
+        if (err.message.includes('404') || err.message.toLowerCase().includes('not found') || err.status === 404) {
+          setIsDeleted(true)
+        } else {
+          setError(err.message)
+        }
+      })
     return () => { alive = false }
   }, [id, user])
+
+  // ADDED: Render this if the topic was deleted
+  if (isDeleted) {
+    return (
+      <AppLayout role="student" title="Topic Not Found">
+        <section className="panel">
+          <div className="empty">
+            <h2>This topic is no longer available.</h2>
+            <p>Your teacher may have deleted this topic.</p>
+            <Link to="/student" className="btn btn--primary" style={{ marginTop: '1rem' }}>
+              Back to my classes
+            </Link>
+          </div>
+        </section>
+      </AppLayout>
+    )
+  }
 
   if (error) {
     return (
@@ -167,7 +189,7 @@ export default function StudentCourse() {
                           <span className="badge">To do</span>
                         )}
                         <Link to={`/student/courses/${course.id}/assignments/${a.id}`} className="btn btn--ghost btn--sm">
-                          {sub?.graded ? 'View' : sub ? 'View / edit' : 'Open'}
+                          {sub ? 'View' : 'Open'}
                         </Link>
                       </div>
                     </li>
@@ -198,8 +220,8 @@ export default function StudentCourse() {
                         </small>
                       </div>
                       <div className="rows__end">
-                        {attempted && my.score != null ? (
-                          <span className="badge badge--live">{my.score}/{my.totalMarks}</span>
+                        {attempted && my.graded && q.resultsReleased ? (
+                          <span className="badge badge--live">{my.score}/{q.totalMarks}</span>
                         ) : attempted ? (
                           <span className="badge">Awaiting grade</span>
                         ) : (
@@ -207,9 +229,8 @@ export default function StudentCourse() {
                         )}
                         <Link
                           to={`/student/quizzes/${q.id}/take`}
-                          className="btn btn--ghost btn--sm">
-                          {attempted ? 'View' : 'Open'}
-                        </Link>
+                          className="btn btn--ghost btn--sm"
+                        >{attempted ? 'View' : 'Open'}</Link>
                       </div>
                     </li>
                   )

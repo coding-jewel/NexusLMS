@@ -5,12 +5,13 @@ import CopyButton from '../../components/CopyButton'
 import { useTenant } from '../../tenant/TenantContext'
 import { schoolUrl } from '../../utils/tenant'
 import { getStats } from '../../api/stats'
+import '../../styles/admin.css'
+
 
 const CARDS = [
   ['classes', 'Classes'],
   ['teachers', 'Teachers'],
   ['students', 'Students'],
-  ['courses', 'Courses'],
 ]
 
 export default function AdminDashboard() {

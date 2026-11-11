@@ -86,21 +86,6 @@ public class GradeServiceTest {
     }
 
     @Test
-    void upsertQuizGrade_TestUsesClassId() {
-        when(gradeRepository.findByQuizIdAndStudentId("test1", "student1"))
-                .thenReturn(Optional.empty());
-        when(gradeRepository.save(any(Grade.class))).thenAnswer(i -> i.getArgument(0));
-
-        Grade result = gradeService.upsertQuizGrade(
-                "tenant1", "student1", null, "class1",
-                "test1", 45, 60, GradeType.TEST);
-
-        assertEquals(GradeType.TEST, result.getType());
-        assertNull(result.getCourseId());
-        assertEquals("class1", result.getClassId());
-    }
-
-    @Test
     void upsertQuizGrade_ExamUsesClassId() {
         when(gradeRepository.findByQuizIdAndStudentId("exam1", "student1"))
                 .thenReturn(Optional.empty());

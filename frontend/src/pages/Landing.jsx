@@ -3,9 +3,9 @@ import Logo from '../components/Logo'
 import '../styles/Landing.css'
 
 const steps = [
-  ['Register your school', 'Tell us the school name. We create your own address from it.'],
+  ['Register your school', 'Tell us the school name. We create your own address and send a verification email to secure your admin account.'],
   ['Create classes', 'Set up the classes and sections your school runs.'],
-  ['Add teachers', 'Enter each teacher’s details. Their account is ready to use.'],
+  ['Teachers join', 'Share your unique Staff Code. Teachers register themselves and wait for your approval to access their classes.'],
   ['Students join', 'Share a class code. Students enter it and land in the right class.'],
 ]
 
@@ -13,9 +13,9 @@ const features = [
   ['Classes', 'Group students into classes and sections. Each class has its own join code.'],
   ['Courses and notes', 'Teachers publish notes and materials for their class, and students read them anywhere.'],
   ['Assignments and file uploads', 'Set a due date, attach files, and collect student work in one place.'],
-  ['Quizzes with auto-grading', 'Multiple-choice questions are marked instantly. Open-ended answers wait for the teacher.'],
-  ['Gradebook', 'Every score for every student, by course, without a spreadsheet.'],
-  ['Roles and permissions', 'Admins, teachers and students each see only what they need.'],
+  ['Quizzes with auto-grading', 'Multiple-choice questions are marked instantly. Open-ended answers wait for the teacher. The timer runs on the server, so exams auto-submit even if a student closes their browser.'],
+  ['Customizable Gradebook', 'Choose between Raw Points or Weighted Categories. Customize the weights (e.g., 40% Assignments, 60% Exams) to match your school\'s policy. Export to CSV in one click.'],
+  ['Roles and permissions', 'Admins, teachers and students each see only what they need, completely isolated from other schools.'],
 ]
 
 export default function Landing() {
@@ -59,11 +59,11 @@ export default function Landing() {
                 </div>
               </div>
               <div className="browser__body">
-                <p className="browser__title">Nexus High School</p>
+                <p className="browser__title">Nexus Tech School</p>
                 <div className="browser__tiles">
-                  <span className="tile tile--a">SS 1 Science</span>
-                  <span className="tile tile--b">JSS 2 Blue</span>
-                  <span className="tile tile--c">SS 2 Arts</span>
+                  <span className="tile tile--a">SpringBoot</span>
+                  <span className="tile tile--b">React</span>
+                  <span className="tile tile--c">Python</span>
                 </div>
                 <div className="browser__row"><i /><b /></div>
                 <div className="browser__row"><i /><b className="short" /></div>
@@ -94,12 +94,12 @@ export default function Landing() {
           <div>
             <h2>Your school, at its own address</h2>
             <p>
-              Register “Nexus High School” and you get <strong>nexus.nexuslms.com</strong>.
+              Register “Nexus Tech School” and you get <strong>nexus.nexuslms.com</strong>.
               Teachers and students sign in there, and only see people and work from your school.
             </p>
           </div>
           <div className="address__demo">
-            <div><span>Nexus High School</span><code>nexus.nexuslms.com</code></div>
+            <div><span>Nexus Tech School</span><code>nexus.nexuslms.com</code></div>
             <div><span>St. Mary’s Academy</span><code>st-marys.nexuslms.com</code></div>
             <div><span>Crown International College</span><code>crown.nexuslms.com</code></div>
           </div>

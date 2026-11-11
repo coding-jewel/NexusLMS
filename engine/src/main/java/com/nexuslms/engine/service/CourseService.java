@@ -1,23 +1,27 @@
 package com.nexuslms.engine.service;
 
-import com.nexuslms.engine.dto.CoursePeopleResponse;
 import com.nexuslms.engine.dto.CourseRequest;
 import com.nexuslms.engine.dto.CourseResponse;
-import com.nexuslms.engine.dto.UserResponse;
 import com.nexuslms.engine.exception.DuplicateResourceException;
 import com.nexuslms.engine.exception.InvalidRequestException;
 import com.nexuslms.engine.exception.NotFoundException;
+import com.nexuslms.engine.models.Assignment;
 import com.nexuslms.engine.models.Course;
+import com.nexuslms.engine.models.Quiz;
 import com.nexuslms.engine.models.Role;
 import com.nexuslms.engine.models.SchoolClass;
 import com.nexuslms.engine.models.User;
 import com.nexuslms.engine.repository.AssignmentRepository;
 import com.nexuslms.engine.repository.CourseRepository;
+import com.nexuslms.engine.repository.GradeRepository;
+import com.nexuslms.engine.repository.QuizAttemptRepository;
 import com.nexuslms.engine.repository.QuizRepository;
 import com.nexuslms.engine.repository.SchoolClassRepository;
+import com.nexuslms.engine.repository.SubmissionRepository;
 import com.nexuslms.engine.repository.UserRepository;
 import com.nexuslms.engine.security.AuthUser;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -35,15 +39,22 @@ public class CourseService {
     private final UserRepository userRepository;
     private final AssignmentRepository assignmentRepository;
     private final QuizRepository quizRepository;
+    private final SubmissionRepository submissionRepository;
+    private final QuizAttemptRepository quizAttemptRepository;
+    private final GradeRepository gradeRepository;
 
     public CourseService(CourseRepository courseRepository, SchoolClassRepository classRepository,
                          UserRepository userRepository, AssignmentRepository assignmentRepository,
-                         QuizRepository quizRepository) {
+                         QuizRepository quizRepository, SubmissionRepository submissionRepository,
+                         QuizAttemptRepository quizAttemptRepository, GradeRepository gradeRepository) {
         this.courseRepository = courseRepository;
         this.classRepository = classRepository;
         this.userRepository = userRepository;
         this.assignmentRepository = assignmentRepository;
         this.quizRepository = quizRepository;
+        this.submissionRepository = submissionRepository;
+        this.quizAttemptRepository = quizAttemptRepository;
+        this.gradeRepository = gradeRepository;
     }
 
     public CourseResponse create(AuthUser auth, CourseRequest request) {
@@ -68,6 +79,22 @@ public class CourseService {
         course.setTitle(title);
         course.setDescription(request.description() == null ? null : request.description().trim());
         course.setPublished(false);
+        return respond(auth.tenantId(), List.of(courseRepository.save(course))).get(0);
+    }
+
+    // NEW: Update method to edit the topic title and description
+    public CourseResponse updateCourse(AuthUser auth, String id, CourseRequest request) {
+        Course course = owned(auth, id);
+
+        String title = request.title().trim();
+        // Check if title changed and if new title already exists in the class
+        if (!course.getTitle().equals(title) && courseRepository.existsByTitleAndClassId(title, course.getClassId())) {
+            throw new DuplicateResourceException("A course with this title already exists in this class");
+        }
+
+        course.setTitle(title);
+        course.setDescription(request.description() == null ? null : request.description().trim());
+
         return respond(auth.tenantId(), List.of(courseRepository.save(course))).get(0);
     }
 
@@ -99,11 +126,26 @@ public class CourseService {
         return respond(auth.tenantId(), List.of(courseRepository.save(course))).get(0);
     }
 
+    @Transactional
     public void delete(AuthUser auth, String id) {
         Course course = owned(auth, id);
-        if (assignmentRepository.existsByCourseId(course.getId()) || quizRepository.existsQuizByCourseId(course.getId())) {
-            throw new InvalidRequestException("This course still has assignments or quizzes. Delete them first.");
+
+        List<Assignment> assignments = assignmentRepository.findAllByCourseId(course.getId());
+        List<Quiz> quizzes = quizRepository.findAllQuizzesByCourseId(course.getId());
+
+        List<String> assignmentIds = assignments.stream().map(Assignment::getId).toList();
+        List<String> quizIds = quizzes.stream().map(Quiz::getId).toList();
+
+        if (!assignmentIds.isEmpty()) {
+            submissionRepository.deleteByAssignmentIdIn(assignmentIds);
         }
+        if (!quizIds.isEmpty()) {
+            quizAttemptRepository.deleteByQuizIdIn(quizIds);
+        }
+
+        gradeRepository.deleteByCourseId(course.getId());
+        assignmentRepository.deleteByCourseId(course.getId());
+        quizRepository.deleteByCourseId(course.getId());
         courseRepository.deleteById(course.getId());
     }
 
@@ -117,18 +159,6 @@ public class CourseService {
         Course course = owned(auth, id);
         course.getAttachmentUrls().remove(fileUrl);
         return respond(auth.tenantId(), List.of(courseRepository.save(course))).get(0);
-    }
-
-    public CoursePeopleResponse people(AuthUser auth, String id) {
-        Course course = visible(auth, id);
-        User teacher = userRepository.findById(course.getTeacherId())
-                .orElseThrow(() -> new NotFoundException(NOT_FOUND));
-        List<UserResponse> students = userRepository.findStudentsInClass(course.getClassId())
-                .stream()
-                .sorted(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER))
-                .map(UserResponse::from)
-                .toList();
-        return new CoursePeopleResponse(UserResponse.from(teacher), students);
     }
 
     // --- helpers ---

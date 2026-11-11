@@ -27,7 +27,7 @@
 
 .nav__actions { display: flex; align-items: center; gap: .6rem; }
 
-.nav__actions .btn { padding: .55rem 1.05rem; }
+.nav__actions .btn { padding: .55rem 1.05rem; white-space: nowrap; }
 
 .hero { padding: 5.5rem 0 5rem; background: linear-gradient(180deg, var(--indigo-50), #fff 85%); }
 .hero__grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 4rem; align-items: center; }
@@ -85,11 +85,37 @@
 .footer { padding: 2rem 0; border-top: 1px solid var(--slate-200); }
 .footer__inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-size: .92rem; color: var(--slate-500); }
 
-@media (max-width: 900px) {
-  .hero__grid, .address__inner, .features__list { grid-template-columns: 1fr; }
-  .hero { padding-top: 3.5rem; }
+/* --- Responsive Adjustments --- */
+
+/* Tablet & Small Desktop (Padding increased to 6rem total width reduction = 3rem each side) */
+@media (max-width: 1024px) {
+  .container { width: min(var(--container), 100% - 6rem); } 
+  
+  .hero__grid, .address__inner, .features__list { grid-template-columns: 1fr; gap: 3rem; }
+  .hero { padding-top: 4rem; }
   .steps { grid-template-columns: 1fr 1fr; }
   .steps::before { display: none; }
-  .nav__links a:not(.btn) { display: none; }
 }
-@media (max-width: 520px) { .steps { grid-template-columns: 1fr; } }
+
+/* Mobile (Padding increased to 3.5rem total width reduction = 1.75rem each side) */
+@media (max-width: 768px) {
+  .container { width: min(var(--container), 100% - 3.5rem); }
+
+  .nav__links a:not(.btn) { display: none; } 
+  .nav__long { display: none; }
+
+  .hero { padding: 3rem 0; }
+  .hero__actions .btn { width: 100%; }
+
+  .steps { grid-template-columns: 1fr; gap: 2rem; }
+  .how, .features, .address { padding: 3.5rem 0; }
+  .cta__inner { flex-direction: column; align-items: flex-start; }
+}
+
+/* Small Phones (Padding increased to 2.5rem total width reduction = 1.25rem each side) */
+@media (max-width: 480px) {
+  .container { width: min(var(--container), 100% - 2.5rem); }
+  .nav__inner { height: 60px; }
+  .nav__actions { gap: 0.4rem; }
+  .nav__actions .btn { padding: 0.45rem 0.75rem; font-size: 0.85rem; }
+}

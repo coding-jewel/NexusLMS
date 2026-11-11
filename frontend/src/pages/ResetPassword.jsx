@@ -1,21 +1,30 @@
-import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import Logo from '../components/Logo'
 import PasswordField from '../components/PasswordField'
 import { resetPassword } from '../api/auth'
+import { useAuth } from '../auth/AuthContext'
+import { PASSWORD_REGEX, PASSWORD_HINT } from '../utils/password'
 import '../styles/auth.css'
 
 export default function ResetPassword() {
   const [params] = useSearchParams()
-  const navigate = useNavigate()
   const token = params.get('token')
+  const { logout } = useAuth()
 
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  // FIXED: Empty dependency array to prevent infinite render loops
+  useEffect(() => {
+    logout()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const mismatch = confirm !== '' && confirm !== password
+  const strongPw = PASSWORD_REGEX.test(password)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -23,10 +32,12 @@ export default function ResetPassword() {
     setBusy(true)
     try {
       await resetPassword(token, password)
-      navigate('/login?reset=1')
+      
+      // FIXED: Force a hard reload to the login page to clear all React state
+      window.location.href = '/login?reset=1'
+      
     } catch (err) {
       setError(err.message)
-    } finally {
       setBusy(false)
     }
   }
@@ -58,9 +69,10 @@ export default function ResetPassword() {
             label="New password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 8 characters"
+            placeholder={PASSWORD_HINT}
             autoComplete="new-password"
             minLength={8}
+            error={password.length > 0 && !strongPw ? PASSWORD_HINT : ''}
           />
           <PasswordField
             label="Confirm password"
@@ -75,7 +87,7 @@ export default function ResetPassword() {
           <button
             className="btn btn--primary btn--block btn--lg"
             type="submit"
-            disabled={busy || !password || password !== confirm}
+            disabled={busy || !strongPw || password !== confirm}
           >
             {busy ? 'Saving…' : 'Reset password'}
           </button>

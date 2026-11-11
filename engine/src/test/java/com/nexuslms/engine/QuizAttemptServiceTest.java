@@ -6,6 +6,7 @@ import com.nexuslms.engine.repository.CourseRepository;
 import com.nexuslms.engine.repository.QuizAttemptRepository;
 import com.nexuslms.engine.repository.QuizRepository;
 import com.nexuslms.engine.repository.UserRepository;
+import com.nexuslms.engine.security.AuthUser;
 import com.nexuslms.engine.service.GradeService;
 import com.nexuslms.engine.service.QuizAttemptService;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,11 +43,14 @@ public class QuizAttemptServiceTest {
     @Mock private GradeService gradeService;
     @InjectMocks private QuizAttemptService quizAttemptService;
 
+    private AuthUser studentAuth;
     private Quiz quiz;
     private QuizAttempt attempt;
 
     @BeforeEach
     void setUp() {
+        studentAuth = new AuthUser("student1", "student@lincoln.edu", "tenant1", "STUDENT");
+
         Question mcqQuestion = new Question();
         mcqQuestion.setText("What is 2 + 2?");
         mcqQuestion.setType(QuestionType.MULTIPLE_CHOICE);
@@ -71,33 +75,40 @@ public class QuizAttemptServiceTest {
         quiz.setQuestions(questions);
 
         attempt = new QuizAttempt();
+        attempt.setId("attempt1");
         attempt.setTenantId("tenant1");
         attempt.setQuizId("quiz1");
         attempt.setStudentId("student1");
-        Map<String, String> answers = new HashMap<>();
-        answers.put("0", "4");
-        answers.put("1", "OOP is a programming paradigm");
-        attempt.setAnswers(answers);
     }
 
     @Test
     void submitAttempt_MCQCorrect_ScoreAdded() {
-        when(quizAttemptRepository.existsByQuizIdAndStudentId("quiz1", "student1")).thenReturn(false);
-        when(quizRepository.findById("quiz1")).thenReturn(Optional.of(quiz));
-        when(quizAttemptRepository.save(attempt)).thenReturn(attempt);
+        Map<String, String> answers = new HashMap<>();
+        answers.put("0", "4");
+        answers.put("1", "OOP is a programming paradigm");
 
-        QuizAttempt result = quizAttemptService.submitAttempt(attempt);
+        when(quizAttemptRepository.findById("attempt1")).thenReturn(Optional.of(attempt));
+        when(quizRepository.findById("quiz1")).thenReturn(Optional.of(quiz));
+        when(quizAttemptRepository.save(any(QuizAttempt.class))).thenAnswer(i -> i.getArgument(0));
+
+        QuizAttempt result = quizAttemptService.submitAttempt(studentAuth, "attempt1", answers);
 
         assertEquals(2, result.getScore());
+        assertTrue(result.isSubmitted());
+        assertNotNull(result.getSubmittedAt());
     }
 
     @Test
     void submitAttempt_HasOpenEnded_NotFullyGraded() {
-        when(quizAttemptRepository.existsByQuizIdAndStudentId("quiz1", "student1")).thenReturn(false);
-        when(quizRepository.findById("quiz1")).thenReturn(Optional.of(quiz));
-        when(quizAttemptRepository.save(attempt)).thenReturn(attempt);
+        Map<String, String> answers = new HashMap<>();
+        answers.put("0", "4");
+        answers.put("1", "OOP is a programming paradigm");
 
-        QuizAttempt result = quizAttemptService.submitAttempt(attempt);
+        when(quizAttemptRepository.findById("attempt1")).thenReturn(Optional.of(attempt));
+        when(quizRepository.findById("quiz1")).thenReturn(Optional.of(quiz));
+        when(quizAttemptRepository.save(any(QuizAttempt.class))).thenAnswer(i -> i.getArgument(0));
+
+        QuizAttempt result = quizAttemptService.submitAttempt(studentAuth, "attempt1", answers);
 
         assertFalse(result.isGraded());
         verify(gradeService, never()).upsertQuizGrade(
@@ -114,13 +125,16 @@ public class QuizAttemptServiceTest {
         mcqQuestion2.setMarks(3);
 
         quiz.setQuestions(List.of(quiz.getQuestions().get(0), mcqQuestion2));
-        attempt.getAnswers().put("1", "A language");
 
-        when(quizAttemptRepository.existsByQuizIdAndStudentId("quiz1", "student1")).thenReturn(false);
+        Map<String, String> answers = new HashMap<>();
+        answers.put("0", "4");
+        answers.put("1", "A language");
+
+        when(quizAttemptRepository.findById("attempt1")).thenReturn(Optional.of(attempt));
         when(quizRepository.findById("quiz1")).thenReturn(Optional.of(quiz));
-        when(quizAttemptRepository.save(attempt)).thenReturn(attempt);
+        when(quizAttemptRepository.save(any(QuizAttempt.class))).thenAnswer(i -> i.getArgument(0));
 
-        QuizAttempt result = quizAttemptService.submitAttempt(attempt);
+        QuizAttempt result = quizAttemptService.submitAttempt(studentAuth, "attempt1", answers);
 
         assertTrue(result.isGraded());
         assertEquals(5, result.getScore());
@@ -131,23 +145,28 @@ public class QuizAttemptServiceTest {
 
     @Test
     void submitAttempt_WrongAnswer_NoScore() {
-        attempt.getAnswers().put("0", "5");
+        Map<String, String> answers = new HashMap<>();
+        answers.put("0", "5"); // Wrong answer
 
-        when(quizAttemptRepository.existsByQuizIdAndStudentId("quiz1", "student1")).thenReturn(false);
+        when(quizAttemptRepository.findById("attempt1")).thenReturn(Optional.of(attempt));
         when(quizRepository.findById("quiz1")).thenReturn(Optional.of(quiz));
-        when(quizAttemptRepository.save(attempt)).thenReturn(attempt);
+        when(quizAttemptRepository.save(any(QuizAttempt.class))).thenAnswer(i -> i.getArgument(0));
 
-        QuizAttempt result = quizAttemptService.submitAttempt(attempt);
+        QuizAttempt result = quizAttemptService.submitAttempt(studentAuth, "attempt1", answers);
 
         assertEquals(0, result.getScore());
     }
 
     @Test
     void submitAttempt_AlreadyAttempted_ThrowsException() {
-        when(quizAttemptRepository.existsByQuizIdAndStudentId("quiz1", "student1")).thenReturn(true);
+        attempt.setSubmitted(true);
+
+        Map<String, String> answers = new HashMap<>();
+
+        when(quizAttemptRepository.findById("attempt1")).thenReturn(Optional.of(attempt));
 
         assertThrows(DuplicateResourceException.class, () -> {
-            quizAttemptService.submitAttempt(attempt);
+            quizAttemptService.submitAttempt(studentAuth, "attempt1", answers);
         });
 
         verify(quizAttemptRepository, never()).save(any());

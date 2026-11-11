@@ -7,6 +7,7 @@ import com.nexuslms.engine.models.User;
 import com.nexuslms.engine.repository.PasswordResetTokenRepository;
 import com.nexuslms.engine.repository.TenantRepository;
 import com.nexuslms.engine.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value; // <-- Added Import
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +24,10 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
-    private final String FRONTEND_URL = "http://%s.localhost:5173/reset-password?token=%s";
+
+    // FIXED: Read from application.properties / .env. Fallback to localhost:5173 for local dev.
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
 
     public PasswordResetService(UserRepository userRepository, TenantRepository tenantRepository,
                                 PasswordResetTokenRepository tokenRepository, EmailService emailService,
@@ -49,7 +53,12 @@ public class PasswordResetService {
         resetToken.setExpiresAt(Instant.now().plus(15, ChronoUnit.MINUTES));
         tokenRepository.save(resetToken);
 
-        String resetUrl = String.format(FRONTEND_URL, tenant.getSubdomain(), token);
+        // FIXED: Dynamically insert the subdomain into the base URL
+        // If frontendUrl is "http://localhost:5173", this becomes "http://nexus.localhost:5173"
+        // If frontendUrl is "http://localhost", this becomes "http://nexus.localhost"
+        String baseUrl = frontendUrl.replace("://", "://" + tenant.getSubdomain() + ".");
+        String resetUrl = baseUrl + "/reset-password?token=" + token;
+        
         emailService.sendPasswordResetLink(user.getEmail(), tenant.getName(), resetUrl);
     }
 

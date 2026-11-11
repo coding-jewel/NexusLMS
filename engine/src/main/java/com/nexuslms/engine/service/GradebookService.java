@@ -5,17 +5,14 @@ import com.nexuslms.engine.exception.NotFoundException;
 import com.nexuslms.engine.models.Assignment;
 import com.nexuslms.engine.models.Course;
 import com.nexuslms.engine.models.Grade;
-import com.nexuslms.engine.models.GradingWeights;
 import com.nexuslms.engine.models.Quiz;
 import com.nexuslms.engine.models.SchoolClass;
-import com.nexuslms.engine.models.Tenant;
 import com.nexuslms.engine.models.User;
 import com.nexuslms.engine.repository.AssignmentRepository;
 import com.nexuslms.engine.repository.CourseRepository;
 import com.nexuslms.engine.repository.GradeRepository;
 import com.nexuslms.engine.repository.QuizRepository;
 import com.nexuslms.engine.repository.SchoolClassRepository;
-import com.nexuslms.engine.repository.TenantRepository;
 import com.nexuslms.engine.repository.UserRepository;
 import com.nexuslms.engine.security.AuthUser;
 import org.springframework.stereotype.Service;
@@ -34,19 +31,16 @@ public class GradebookService {
     private final AssignmentRepository assignmentRepository;
     private final QuizRepository quizRepository;
     private final GradeRepository gradeRepository;
-    private final TenantRepository tenantRepository;
 
     public GradebookService(CourseRepository courseRepository, SchoolClassRepository classRepository,
                             UserRepository userRepository, AssignmentRepository assignmentRepository,
-                            QuizRepository quizRepository, GradeRepository gradeRepository,
-                            TenantRepository tenantRepository) {
+                            QuizRepository quizRepository, GradeRepository gradeRepository) {
         this.courseRepository = courseRepository;
         this.classRepository = classRepository;
         this.userRepository = userRepository;
         this.assignmentRepository = assignmentRepository;
         this.quizRepository = quizRepository;
         this.gradeRepository = gradeRepository;
-        this.tenantRepository = tenantRepository;
     }
 
     public GradebookResponse forCourse(AuthUser auth, String courseId) {
@@ -66,44 +60,46 @@ public class GradebookService {
         Map<String, Grade> aLookup = index(gradeRepository.findAllByAssignmentIdIn(aIds), true);
         Map<String, Grade> qLookup = index(gradeRepository.findAllByQuizIdIn(qIds), false);
 
-        GradebookResponse.Group aGroup = new GradebookResponse.Group("assignments", "Assignments",
-                assignments.stream()
-                        .map(a -> new GradebookResponse.Item(a.getId(), a.getTitle(), a.getTotalMarks()))
-                        .toList());
-        GradebookResponse.Group qGroup = new GradebookResponse.Group("quizzes", "Quizzes",
-                quizzes.stream()
-                        .map(q -> new GradebookResponse.Item(q.getId(), q.getTitle(), q.effectiveTotalMarks()))
-                        .toList());
+        // FIXED: Combine assignments and quizzes into a single list
+        List<GradebookResponse.Item> items = new ArrayList<>();
+        assignments.forEach(a -> items.add(new GradebookResponse.Item(a.getId(), a.getTitle(), a.getTotalMarks())));
+        quizzes.forEach(q -> items.add(new GradebookResponse.Item(q.getId(), q.getTitle(), q.effectiveTotalMarks())));
+
+        GradebookResponse.Group group = new GradebookResponse.Group("coursework", "Coursework", items);
 
         List<GradebookResponse.Row> rows = new ArrayList<>();
         for (User s : students) {
             Map<String, Integer> scores = new HashMap<>();
-            double aEarned = 0, aPossible = 0;
+            double totalEarned = 0, totalPossible = 0;
+
+            // Loop assignments
             for (Assignment a : assignments) {
                 Grade g = aLookup.get(s.getId() + ":" + a.getId());
                 if (g != null && g.getScore() != null) {
                     scores.put(a.getId(), g.getScore());
-                    aEarned += g.getScore();
-                    aPossible += g.getTotalMarks() != null ? g.getTotalMarks() : a.getTotalMarks();
+                    totalEarned += g.getScore();
+                    totalPossible += g.getTotalMarks() != null ? g.getTotalMarks() : a.getTotalMarks();
                 }
             }
-            double qEarned = 0, qPossible = 0;
+
+            // Loop quizzes
             for (Quiz q : quizzes) {
                 Grade g = qLookup.get(s.getId() + ":" + q.getId());
                 if (g != null && g.getScore() != null) {
                     scores.put(q.getId(), g.getScore());
-                    qEarned += g.getScore();
-                    qPossible += g.getTotalMarks() != null ? g.getTotalMarks() : q.effectiveTotalMarks();
+                    totalEarned += g.getScore();
+                    totalPossible += g.getTotalMarks() != null ? g.getTotalMarks() : q.effectiveTotalMarks();
                 }
             }
+
             Map<String, Double> subtotals = new HashMap<>();
-            subtotals.put("assignments", aPossible > 0 ? (aEarned / aPossible) * 100 : null);
-            subtotals.put("quizzes", qPossible > 0 ? (qEarned / qPossible) * 100 : null);
+            subtotals.put("coursework", totalPossible > 0 ? (totalEarned / totalPossible) * 100 : null);
+
             rows.add(new GradebookResponse.Row(s.getId(), s.getName(), scores, subtotals, null, false));
         }
 
         return new GradebookResponse("COURSE", course.getId(), course.getTitle(),
-                schoolClass.getName(), List.of(aGroup, qGroup), rows);
+                schoolClass.getName(), List.of(group), rows);
     }
 
     public GradebookResponse forClass(AuthUser auth, String classId) {
@@ -119,23 +115,13 @@ public class GradebookService {
             throw new NotFoundException("Class not found");
         }
 
-        Tenant tenant = tenantRepository.findById(auth.tenantId())
-                .orElseThrow(() -> new NotFoundException("School not found"));
-        GradingWeights weights = tenant.getGradingWeights() != null
-                ? tenant.getGradingWeights()
-                : GradingWeights.DEFAULT;
-
-        List<Quiz> tests = quizRepository.findAllByClassIdAndCategory(classId, "TEST");
         List<Quiz> exams = quizRepository.findAllByClassIdAndCategory(classId, "EXAM");
         List<User> students = userRepository.findStudentsInClass(classId);
 
         List<String> allIds = new ArrayList<>();
-        tests.forEach(q -> allIds.add(q.getId()));
         exams.forEach(q -> allIds.add(q.getId()));
         Map<String, Grade> lookup = index(gradeRepository.findAllByQuizIdIn(allIds), false);
 
-        GradebookResponse.Group tGroup = new GradebookResponse.Group("tests", "Tests",
-                tests.stream().map(q -> new GradebookResponse.Item(q.getId(), q.getTitle(), q.effectiveTotalMarks())).toList());
         GradebookResponse.Group eGroup = new GradebookResponse.Group("exams", "Exams",
                 exams.stream().map(q -> new GradebookResponse.Item(q.getId(), q.getTitle(), q.effectiveTotalMarks())).toList());
 
@@ -143,15 +129,6 @@ public class GradebookService {
         for (User s : students) {
             Map<String, Integer> scores = new HashMap<>();
 
-            double tEarned = 0, tPossible = 0;
-            for (Quiz q : tests) {
-                Grade g = lookup.get(s.getId() + ":" + q.getId());
-                if (g != null && g.getScore() != null) {
-                    scores.put(q.getId(), g.getScore());
-                    tEarned += g.getScore();
-                    tPossible += g.getTotalMarks() != null ? g.getTotalMarks() : q.effectiveTotalMarks();
-                }
-            }
             double eEarned = 0, ePossible = 0;
             for (Quiz q : exams) {
                 Grade g = lookup.get(s.getId() + ":" + q.getId());
@@ -162,25 +139,17 @@ public class GradebookService {
                 }
             }
 
-            Double tPct = tPossible > 0 ? (tEarned / tPossible) * 100 : null;
             Double ePct = ePossible > 0 ? (eEarned / ePossible) * 100 : null;
 
             Map<String, Double> subtotals = new HashMap<>();
-            subtotals.put("tests", tPct);
             subtotals.put("exams", ePct);
 
-            Double overall = null;
-            double weightSum = 0, weightedSum = 0;
-            if (tPct != null) { weightSum += weights.tests(); weightedSum += tPct * weights.tests(); }
-            if (ePct != null) { weightSum += weights.exams(); weightedSum += ePct * weights.exams(); }
-            if (weightSum > 0) overall = weightedSum / weightSum;
-
-            boolean provisional = tPct == null || ePct == null;
-            rows.add(new GradebookResponse.Row(s.getId(), s.getName(), scores, subtotals, overall, provisional));
+            boolean provisional = ePossible == 0;
+            rows.add(new GradebookResponse.Row(s.getId(), s.getName(), scores, subtotals, ePct, provisional));
         }
 
         return new GradebookResponse("CLASS", schoolClass.getId(), schoolClass.getName(),
-                schoolClass.getName(), List.of(tGroup, eGroup), rows);
+                schoolClass.getName(), List.of(eGroup), rows);
     }
 
     private Map<String, Grade> index(List<Grade> grades, boolean byAssignment) {

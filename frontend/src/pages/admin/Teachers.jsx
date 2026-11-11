@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout'
 import CopyButton from '../../components/CopyButton'
 import Modal from '../../components/Modal'
@@ -19,10 +20,10 @@ const formatDate = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { d
 
 export default function Teachers() {
   const { subdomain } = useTenant()
-  const [data, setData] = useState(null) // { code, teachers, classes }
+  const [data, setData] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [confirm, setConfirm] = useState(null) // { kind: 'regenerate' | 'approve' | 'decline' | 'remove', teacher? }
+  const [confirm, setConfirm] = useState(null)
   const [confirmError, setConfirmError] = useState('')
 
   const load = () => {
@@ -134,7 +135,7 @@ export default function Teachers() {
                 <span className="badge badge--warn">{waiting.length}</span>
               </div>
               <div className="table-wrap">
-                <table>
+                <table className="table-waiting-teachers">
                   <thead>
                     <tr><th>Name</th><th>Email</th><th>Requested</th><th>Actions</th></tr>
                   </thead>
@@ -159,11 +160,12 @@ export default function Teachers() {
           )}
 
           <section className="panel">
+            <div className="panel__head"><h2>Teachers</h2></div>
             {active.length === 0 ? (
               <p className="empty">No teachers yet. Share the sign-up code above to invite them.</p>
             ) : (
               <div className="table-wrap">
-                <table>
+                <table className="table-teachers">
                   <thead>
                     <tr><th>Name</th><th>Email</th><th>Classes</th><th>Actions</th></tr>
                   </thead>

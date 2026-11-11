@@ -4,6 +4,8 @@ import com.nexuslms.engine.exception.InvalidRequestException;
 import com.nexuslms.engine.models.Grade;
 import com.nexuslms.engine.models.GradeType;
 import com.nexuslms.engine.repository.GradeRepository;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,7 +21,8 @@ public class GradeService {
     }
 
     public Grade createGrade(Grade grade) {
-        boolean classLevel = grade.getType() == GradeType.TEST || grade.getType() == GradeType.EXAM;
+        // FIXED: Removed GradeType.TEST since only EXAM remains at the class level
+        boolean classLevel = grade.getType() == GradeType.EXAM;
         if (classLevel) {
             if (grade.getClassId() == null || grade.getClassId().isBlank()) {
                 throw new InvalidRequestException("A class-level grade must belong to a class.");
@@ -35,11 +38,30 @@ public class GradeService {
         return gradeRepository.save(grade);
     }
 
-    /** Records a submission grade, replacing any earlier one for the same assignment + student. */
+    /** Records a submission grade. Updates if it exists (for teacher grading), creates if it doesn't. */
     public Grade upsertSubmissionGrade(String tenantId, String studentId, String courseId,
                                        String assignmentId, Integer score, Integer totalMarks, String feedback) {
-        Grade grade = gradeRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)
-                .orElseGet(Grade::new);
+        Grade grade = null;
+
+        try {
+            grade = gradeRepository.findByAssignmentIdAndStudentId(assignmentId, studentId).orElse(null);
+        } catch (IncorrectResultSizeDataAccessException e) {
+            // SELF-HEALING: If old duplicates exist from a previous glitch, clean them up.
+            List<Grade> matches = gradeRepository.findAllByStudentId(studentId).stream()
+                    .filter(g -> assignmentId.equals(g.getAssignmentId()))
+                    .toList();
+            if (!matches.isEmpty()) {
+                grade = matches.get(0);
+                for (int i = 1; i < matches.size(); i++) {
+                    gradeRepository.delete(matches.get(i));
+                }
+            }
+        }
+
+        if (grade == null) {
+            grade = new Grade();
+        }
+
         grade.setTenantId(tenantId);
         grade.setStudentId(studentId);
         grade.setCourseId(courseId);
@@ -50,14 +72,43 @@ public class GradeService {
         grade.setTotalMarks(totalMarks);
         grade.setFeedback(feedback);
         grade.setType(GradeType.ASSIGNMENT);
-        return createGrade(grade);
+
+        try {
+            return createGrade(grade);
+        } catch (DuplicateKeyException e) {
+            // RACE CONDITION: Two requests hit at the same time. Update the existing one.
+            Grade existing = gradeRepository.findByAssignmentIdAndStudentId(assignmentId, studentId).orElseThrow();
+            existing.setScore(score);
+            existing.setTotalMarks(totalMarks);
+            existing.setFeedback(feedback);
+            return gradeRepository.save(existing);
+        }
     }
 
-    /** Records a quiz score (QUIZ, TEST or EXAM), replacing any earlier one. */
+    /** Records a quiz score (QUIZ or EXAM). Updates if it exists (for teacher grading), creates if it doesn't. */
     public Grade upsertQuizGrade(String tenantId, String studentId, String courseId, String classId,
                                  String quizId, Integer score, Integer totalMarks, GradeType type) {
-        Grade grade = gradeRepository.findByQuizIdAndStudentId(quizId, studentId)
-                .orElseGet(Grade::new);
+        Grade grade = null;
+
+        try {
+            grade = gradeRepository.findByQuizIdAndStudentId(quizId, studentId).orElse(null);
+        } catch (IncorrectResultSizeDataAccessException e) {
+            // SELF-HEALING: If old duplicates exist, clean them up.
+            List<Grade> matches = gradeRepository.findAllByStudentId(studentId).stream()
+                    .filter(g -> quizId.equals(g.getQuizId()))
+                    .toList();
+            if (!matches.isEmpty()) {
+                grade = matches.get(0);
+                for (int i = 1; i < matches.size(); i++) {
+                    gradeRepository.delete(matches.get(i));
+                }
+            }
+        }
+
+        if (grade == null) {
+            grade = new Grade();
+        }
+
         grade.setTenantId(tenantId);
         grade.setStudentId(studentId);
         grade.setCourseId(courseId);
@@ -67,7 +118,16 @@ public class GradeService {
         grade.setScore(score);
         grade.setTotalMarks(totalMarks);
         grade.setType(type);
-        return createGrade(grade);
+
+        try {
+            return createGrade(grade);
+        } catch (DuplicateKeyException e) {
+            // RACE CONDITION: Two requests hit at the same time. Update the existing one.
+            Grade existing = gradeRepository.findByQuizIdAndStudentId(quizId, studentId).orElseThrow();
+            existing.setScore(score);
+            existing.setTotalMarks(totalMarks);
+            return gradeRepository.save(existing);
+        }
     }
 
     public List<Grade> getGradesByStudentAndCourse(String studentId, String courseId) {

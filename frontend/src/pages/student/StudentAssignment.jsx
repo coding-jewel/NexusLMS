@@ -32,9 +32,10 @@ export default function StudentAssignment() {
   const { id: courseId, aid: assignmentId } = useParams()
   const [course, setCourse] = useState(null)
   const [assignment, setAssignment] = useState(null)
-  const [submission, setSubmission] = useState(null) // null = no submission yet
+  const [submission, setSubmission] = useState(null)
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
+  const [isDeleted, setIsDeleted] = useState(false) // ADDED
 
   const [text, setText] = useState('')
   const [files, setFiles] = useState([])
@@ -47,10 +48,11 @@ export default function StudentAssignment() {
   useEffect(() => {
     let alive = true
     setError('')
+    setIsDeleted(false)
     Promise.all([
       getCourse(courseId),
       getAssignment(assignmentId),
-      getMySubmission(assignmentId),
+      getMySubmission(assignmentId).catch(() => null), // Catch 404s for submissions (means no submission yet)
     ])
       .then(([c, a, sub]) => {
         if (!alive) return
@@ -59,7 +61,15 @@ export default function StudentAssignment() {
         setSubmission(sub)
         setLoaded(true)
       })
-      .catch((err) => alive && setError(err.message))
+      .catch((err) => {
+        if (!alive) return
+        // ADDED: Check for 404 Not Found (deleted topic or assignment)
+        if (err.message.includes('404') || err.message.toLowerCase().includes('not found') || err.status === 404) {
+          setIsDeleted(true)
+        } else {
+          setError(err.message)
+        }
+      })
     return () => { alive = false }
   }, [courseId, assignmentId])
 
@@ -97,6 +107,23 @@ export default function StudentAssignment() {
     } finally {
       setBusy(false)
     }
+  }
+
+  // ADDED: Render this if the assignment or topic was deleted
+  if (isDeleted) {
+    return (
+      <AppLayout role="student" title="Not Found">
+        <section className="panel">
+          <div className="empty">
+            <h2>This assignment is no longer available.</h2>
+            <p>Your teacher may have deleted the assignment or the entire topic.</p>
+            <Link to="/student" className="btn btn--primary" style={{ marginTop: '1rem' }}>
+              Back to my classes
+            </Link>
+          </div>
+        </section>
+      </AppLayout>
+    )
   }
 
   if (error) {

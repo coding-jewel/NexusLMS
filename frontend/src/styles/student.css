@@ -10,7 +10,11 @@
 .feedback p { margin: .3rem 0 0; color: var(--slate-900); }
 .notfound { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 1rem; text-align: center; padding: 2rem; }
 .notfound p { color: var(--slate-500); }
-@media (max-width: 900px) { .student-home { grid-template-columns: 1fr; } }
+
+@media (max-width: 900px) {
+  .student-home { grid-template-columns: 1fr; }
+  .take-layout { grid-template-columns: 1fr; }
+}
 
 .class-sections { display: grid; gap: 2rem; }
 .class-heading { font-size: 1.15rem; margin-bottom: .8rem; padding-bottom: .5rem; border-bottom: 1px solid var(--slate-200); }
@@ -52,3 +56,179 @@
 .content > .class-heading { margin-top: .4rem; }
 
 @media (max-width: 800px) { .take-layout { grid-template-columns: 1fr; } }
+
+/* =========================================
+   STUDENT GRADE SUMMARY & CARDS
+   ========================================= */
+
+/* --- Shared Summary Bar (Used on Grade Detail page) --- */
+.grade-summary-bar {
+  display: flex;
+  justify-content: space-between;
+  padding: 1.5rem;
+  background: var(--slate-50);
+  border-radius: var(--radius-lg);
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.grade-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  min-width: 120px;
+}
+
+.grade-stat__label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--slate-500);
+  margin-bottom: 0.2rem;
+}
+
+.grade-stat__value {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.grade-stat--indigo { color: var(--indigo-700); }
+.grade-stat--teal { color: var(--teal-700); }
+.grade-stat--overall { 
+  border-left: 2px solid var(--slate-200); 
+  color: var(--slate-900);
+}
+
+/* --- My Grades Page Cards --- */
+.grade-card-body {
+  padding: 1rem 1.3rem;
+  display: block;
+}
+
+.grade-card-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--slate-200);
+}
+
+.grade-card-summary__value {
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--slate-900);
+}
+
+.grade-card-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.grade-card-method {
+  font-size: 0.8rem;
+  color: var(--slate-500);
+  background: var(--slate-50);
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+/* --- Grade Detail Page Headings --- */
+.subhead--assignments { margin-top: 0; color: var(--indigo-700); }
+.subhead--quizzes { margin-top: 2rem; color: var(--indigo-700); }
+.subhead--exams { margin-top: 2rem; color: var(--teal-700); }
+
+/* =========================================
+   TABLET RESPONSIVENESS (iPad, etc.)
+   ========================================= */
+@media (max-width: 900px) {
+  .grade-summary-bar {
+    gap: 0.5rem;
+    padding: 1.2rem;
+  }
+  
+  .grade-stat {
+    min-width: 45%;
+  }
+
+  .grade-stat--overall {
+    border-left: none;
+    border-top: 1px solid var(--slate-200);
+    padding-top: 0.8rem;
+    margin-top: 0.5rem;
+    grid-column: span 2;
+    max-width: 50%;
+    margin-inline: auto;
+  }
+}
+
+/* =========================================
+   MOBILE RESPONSIVENESS (Phones)
+   ========================================= */
+@media (max-width: 600px) {
+  .grade-summary-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    padding: 1.2rem;
+  }
+
+  .grade-stat {
+    min-width: 100%;
+  }
+
+  .grade-stat--overall {
+    border-top: 1px solid var(--slate-200);
+    padding-top: 1rem;
+    grid-column: 1 / -1;
+    max-width: 100%;
+  }
+
+  .grade-stat__value, 
+  .grade-card-summary__value {
+    font-size: 1.1rem;
+  }
+
+  .grade-card-stats {
+    gap: 0.2rem;
+  }
+  
+  .grade-card-method {
+    font-size: 0.75rem;
+  }
+}
+
+/* =========================================
+   MOBILE TABLE LABELS FOR EXAMS (Student Page)
+   ========================================= */
+@media (max-width: 768px) {
+  table.table-exams td:nth-child(2)::before { content: "Type"; }
+  table.table-exams td:nth-child(3)::before { content: "Questions"; }
+  table.table-exams td:nth-child(4)::before { content: "Time"; }
+  table.table-exams td:nth-child(5)::before { content: "Status"; }
+
+  /* Left align the exam title (first cell) on mobile cards */
+  table.table-exams td:first-child {
+    text-align: left !important;
+    display: block !important;
+    border-bottom: 2px solid var(--slate-200) !important;
+    padding-bottom: 1rem !important;
+    margin-bottom: 0.5rem !important;
+    font-size: 1.15rem !important;
+  }
+  
+  /* Align the Open/View button to the right */
+  table.table-exams td:last-child {
+    display: flex !important;
+    justify-content: flex-end !important;
+    text-align: right !important;
+  }
+}

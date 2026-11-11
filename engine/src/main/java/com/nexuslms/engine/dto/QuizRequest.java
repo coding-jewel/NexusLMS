@@ -27,11 +27,5 @@ public record QuizRequest(
         @NotNull(message = "Total marks are required.")
         @Min(value = 1, message = "Total marks must be at least 1.")
         @Max(value = 1000, message = "Total marks can't exceed 1000.")
-        Integer totalMarks,
-
-        // "OFF" | "RECORD" | "AUTO". Null defaults to RECORD.
-        String guardMode,
-
-        // 1–10. Null defaults to 3.
-        Integer guardLimit
+        Integer totalMarks
 ) {}

@@ -1,26 +1,18 @@
 package com.nexuslms.engine.service;
 
 import com.nexuslms.engine.dto.GradeAttemptRequest;
-import com.nexuslms.engine.dto.QuizAttemptRequest;
 import com.nexuslms.engine.exception.DuplicateResourceException;
 import com.nexuslms.engine.exception.InvalidRequestException;
 import com.nexuslms.engine.exception.NotFoundException;
-import com.nexuslms.engine.models.Course;
-import com.nexuslms.engine.models.GradeType;
-import com.nexuslms.engine.models.Question;
-import com.nexuslms.engine.models.QuestionType;
-import com.nexuslms.engine.models.Quiz;
-import com.nexuslms.engine.models.QuizAttempt;
-import com.nexuslms.engine.models.QuizCategory;
-import com.nexuslms.engine.models.User;
-import com.nexuslms.engine.repository.CourseRepository;
-import com.nexuslms.engine.repository.QuizAttemptRepository;
-import com.nexuslms.engine.repository.QuizRepository;
-import com.nexuslms.engine.repository.UserRepository;
+import com.nexuslms.engine.models.*;
+import com.nexuslms.engine.repository.*;
 import com.nexuslms.engine.security.AuthUser;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -44,52 +36,96 @@ public class QuizAttemptService {
         this.gradeService = gradeService;
     }
 
-    public QuizAttempt submitAttempt(AuthUser auth, QuizAttemptRequest request) {
-        Quiz quiz = quizRepository.findById(request.quizId())
+    public QuizAttempt startAttempt(AuthUser auth, String quizId) {
+        Quiz quiz = quizRepository.findById(quizId)
                 .filter(Quiz::isPublished)
                 .orElseThrow(() -> new NotFoundException("Quiz not found"));
+        verifyEnrolled(auth, quiz);
 
-        User me = userRepository.findById(auth.userId())
-                .filter(u -> auth.tenantId().equals(u.getTenantId()))
-                .orElseThrow(() -> new NotFoundException("Quiz not found"));
+        Optional<QuizAttempt> existing = quizAttemptRepository.findByQuizIdAndStudentId(quizId, auth.userId());
+        if (existing.isPresent()) {
+            QuizAttempt attempt = existing.get();
+            if (attempt.isSubmitted() || attempt.isGraded()) {
+                throw new DuplicateResourceException("You have already attempted this quiz");
+            }
+            if (attempt.getExpiresAt() != null && attempt.getExpiresAt().isBefore(LocalDateTime.now())) {
+                autoSubmit(attempt, quiz);
+                throw new DuplicateResourceException("The time for this quiz has run out. Your attempt was submitted automatically.");
+            }
+            return attempt;
+        }
 
-        boolean enrolled;
-        if (quiz.getCategory() == QuizCategory.QUIZ) {
-            Course course = courseRepository.findById(quiz.getCourseId())
-                    .orElseThrow(() -> new NotFoundException("Quiz not found"));
-            enrolled = me.getClassIds().contains(course.getClassId());
-        } else {
-            enrolled = me.getClassIds().contains(quiz.getClassId());
-        }
-        if (!enrolled) {
-            throw new NotFoundException("Quiz not found");
-        }
+        int limit = quiz.getTimeLimitMinutes() != null ? quiz.getTimeLimitMinutes() : 30;
+        LocalDateTime now = LocalDateTime.now();
 
         QuizAttempt attempt = new QuizAttempt();
         attempt.setTenantId(auth.tenantId());
         attempt.setQuizId(quiz.getId());
         attempt.setStudentId(auth.userId());
-        attempt.setAnswers(request.answers());
-        attempt.setLeftPage(request.leftPage() == null ? 0 : Math.max(0, request.leftPage()));
-        return submitAttempt(attempt);
+        attempt.setAnswers(new java.util.HashMap<>());
+        attempt.setStartedAt(now);
+        attempt.setExpiresAt(now.plusMinutes(limit));
+        attempt.setSubmitted(false);
+        return quizAttemptRepository.save(attempt);
     }
 
-    public QuizAttempt submitAttempt(QuizAttempt attempt) {
-        if (quizAttemptRepository.existsByQuizIdAndStudentId(
-                attempt.getQuizId(), attempt.getStudentId())) {
-            throw new DuplicateResourceException("You have already attempted this quiz");
+    public QuizAttempt submitAttempt(AuthUser auth, String attemptId, Map<String, String> answers) {
+        QuizAttempt attempt = quizAttemptRepository.findById(attemptId)
+                .filter(a -> auth.tenantId().equals(a.getTenantId()))
+                .filter(a -> auth.userId().equals(a.getStudentId()))
+                .orElseThrow(() -> new NotFoundException("Attempt not found"));
+
+        if (attempt.isSubmitted()) {
+            throw new DuplicateResourceException("This attempt has already been submitted");
         }
 
         Quiz quiz = quizRepository.findById(attempt.getQuizId())
                 .orElseThrow(() -> new NotFoundException("Quiz not found"));
 
+        attempt.setAnswers(answers);
+        return finalizeAttempt(attempt, quiz);
+    }
+
+    // NEW: Method to handle abandoned attempts
+    public void abandonAttempt(AuthUser auth, String attemptId) {
+        quizAttemptRepository.findById(attemptId)
+                .filter(a -> auth.tenantId().equals(a.getTenantId()))
+                .filter(a -> auth.userId().equals(a.getStudentId()))
+                .ifPresent(attempt -> {
+                    if (!attempt.isSubmitted()) {
+                        attempt.setSubmitted(true);
+                        attempt.setSubmittedAt(LocalDateTime.now());
+                        quizAttemptRepository.save(attempt);
+                    }
+                });
+    }
+
+    @Scheduled(fixedRate = 30000)
+    public void autoSubmitExpiredAttempts() {
+        List<QuizAttempt> expired = quizAttemptRepository.findExpiredUnsubmitted(LocalDateTime.now());
+        for (QuizAttempt attempt : expired) {
+            try {
+                Quiz quiz = quizRepository.findById(attempt.getQuizId()).orElse(null);
+                if (quiz != null) {
+                    autoSubmit(attempt, quiz);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private void autoSubmit(QuizAttempt attempt, Quiz quiz) {
+        finalizeAttempt(attempt, quiz);
+    }
+
+    private QuizAttempt finalizeAttempt(QuizAttempt attempt, Quiz quiz) {
         int totalScore = 0;
         boolean hasOpenEnded = false;
         List<Question> questions = quiz.getQuestions();
         for (int i = 0; i < questions.size(); i++) {
             Question question = questions.get(i);
             int marks = question.getMarks() != null ? question.getMarks() : 1;
-            String studentAnswer = attempt.getAnswers().get(String.valueOf(i));
+            String studentAnswer = attempt.getAnswers() != null ? attempt.getAnswers().get(String.valueOf(i)) : null;
 
             if (question.getType() == QuestionType.MULTIPLE_CHOICE) {
                 if (studentAnswer != null && studentAnswer.equals(question.getCorrectAnswer())) {
@@ -102,6 +138,8 @@ public class QuizAttemptService {
 
         attempt.setScore(totalScore);
         attempt.setGraded(!hasOpenEnded);
+        attempt.setSubmitted(true);
+        attempt.setSubmittedAt(LocalDateTime.now());
         QuizAttempt saved = quizAttemptRepository.save(attempt);
 
         if (saved.isGraded()) {
@@ -111,6 +149,21 @@ public class QuizAttemptService {
                     quiz.getId(), totalScore, quiz.effectiveTotalMarks(), gradeTypeOf(quiz));
         }
         return saved;
+    }
+
+    private void verifyEnrolled(AuthUser auth, Quiz quiz) {
+        User me = userRepository.findById(auth.userId())
+                .filter(u -> auth.tenantId().equals(u.getTenantId()))
+                .orElseThrow(() -> new NotFoundException("Quiz not found"));
+        boolean enrolled;
+        if (quiz.getCategory() == QuizCategory.QUIZ) {
+            Course course = courseRepository.findById(quiz.getCourseId())
+                    .orElseThrow(() -> new NotFoundException("Quiz not found"));
+            enrolled = me.getClassIds().contains(course.getClassId());
+        } else {
+            enrolled = me.getClassIds().contains(quiz.getClassId());
+        }
+        if (!enrolled) throw new NotFoundException("Quiz not found");
     }
 
     public Optional<QuizAttempt> myAttemptFor(AuthUser auth, String quizId) {
@@ -146,18 +199,27 @@ public class QuizAttemptService {
                 .filter(q -> auth.userId().equals(q.getTeacherId()))
                 .orElseThrow(() -> new NotFoundException("Attempt not found"));
 
-        if (quiz.isResultsReleased()) {
+        boolean isClassLevel = quiz.getCategory() == QuizCategory.EXAM;
+        if (isClassLevel && quiz.isResultsReleased()) {
             throw new InvalidRequestException("Results have already been released. You cannot update marks.");
         }
 
         int current = attempt.getScore() == null ? 0 : attempt.getScore();
         int newScore = current + request.additionalScore();
+
+        if (newScore < 0) throw new InvalidRequestException("The final score cannot be negative.");
         if (newScore > quiz.effectiveTotalMarks()) {
-            throw new InvalidRequestException(
-                    "Score can't be higher than the quiz total of " + quiz.effectiveTotalMarks() + ".");
+            throw new InvalidRequestException("Score can't be higher than the quiz total of " + quiz.effectiveTotalMarks() + ".");
         }
+
         attempt.setScore(newScore);
         attempt.setGraded(true);
+
+        if (!attempt.isSubmitted()) {
+            attempt.setSubmitted(true);
+            attempt.setSubmittedAt(LocalDateTime.now());
+        }
+
         QuizAttempt saved = quizAttemptRepository.save(attempt);
 
         gradeService.upsertQuizGrade(
@@ -175,7 +237,6 @@ public class QuizAttemptService {
     private GradeType gradeTypeOf(Quiz quiz) {
         return switch (quiz.getCategory()) {
             case QUIZ -> GradeType.QUIZ;
-            case TEST -> GradeType.TEST;
             case EXAM -> GradeType.EXAM;
         };
     }

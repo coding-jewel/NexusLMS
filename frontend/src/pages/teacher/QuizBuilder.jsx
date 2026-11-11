@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import AppLayout from '../../components/AppLayout'
+import Modal from '../../components/Modal'
 import { createQuiz, updateQuiz, publishQuiz, getQuiz } from '../../api/quizzes'
 import { listCourses } from '../../api/courses'
 import { listClasses } from '../../api/classes'
 import { useAuth } from '../../auth/AuthContext'
 import '../../styles/teacher.css'
+import '../../styles/student.css'
 
 let nextId = 1
 const blank = (type) => ({ id: nextId++, type, text: '', marks: 1, options: ['', ''], correct: 0 })
@@ -17,8 +19,9 @@ export default function QuizBuilder() {
   const { user } = useAuth()
 
   const isEdit = Boolean(editId)
+  const isPreview = params.get('preview') === 'true'
   const lockedCourseId = params.get('course') || ''
-  const initialType = lockedCourseId ? 'QUIZ' : (params.get('type')?.toUpperCase() === 'EXAM' ? 'EXAM' : 'TEST')
+  const initialType = lockedCourseId ? 'QUIZ' : 'EXAM'
 
   const [category, setCategory] = useState(initialType)
   const [courseId, setCourseId] = useState(lockedCourseId)
@@ -28,8 +31,7 @@ export default function QuizBuilder() {
   const [description, setDescription] = useState('')
   const [minutes, setMinutes] = useState(30)
   const [totalMarks, setTotalMarks] = useState('20')
-  const [guardMode, setGuardMode] = useState('RECORD')
-  const [guardLimit, setGuardLimit] = useState(3)
+  
   const [questions, setQuestions] = useState([blank('MULTIPLE_CHOICE')])
 
   const [courses, setCourses] = useState([])
@@ -37,6 +39,10 @@ export default function QuizBuilder() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [loaded, setLoaded] = useState(!isEdit)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  
+  // NEW: Track if the quiz is already published in the database
+  const [isPublished, setIsPublished] = useState(false)
 
   useEffect(() => {
     if (!isEdit) return
@@ -50,8 +56,7 @@ export default function QuizBuilder() {
         setDescription(q.description || '')
         setMinutes(q.timeLimitMinutes ?? 30)
         setTotalMarks(String(q.totalMarks ?? 0 > 0 ? q.totalMarks : (q.questions ?? []).reduce((n, x) => n + (x.marks ?? 1), 0)))
-        setGuardMode(q.guardMode || 'RECORD')
-        setGuardLimit(q.guardLimit ?? 3)
+        setIsPublished(q.published) // NEW: Store the published state
         const qs = q.questions ?? []
         setQuestions(qs.length > 0
           ? qs.map((item) => {
@@ -98,6 +103,9 @@ export default function QuizBuilder() {
     }).catch(() => {})
   }, [isEdit, category, user])
 
+  // FIXED: If it's a preview link OR the quiz is already published, lock it down.
+  const isReadOnly = isPreview || isPublished
+
   const containerName = () => {
     if (category === 'QUIZ') return courses.find((c) => c.id === courseId)?.title || 'the topic'
     return classes.find((c) => c.id === classId)?.name || 'the class'
@@ -135,6 +143,7 @@ export default function QuizBuilder() {
       }
 
   const save = async (publish) => {
+    if (isReadOnly) return // Guard clause
     setError('')
     if (!title.trim()) { setError('Give this a title first.'); return }
     if (!Number.isInteger(cap) || cap < 1 || cap > 1000) { setError('Total marks must be a whole number between 1 and 1000.'); return }
@@ -159,8 +168,6 @@ export default function QuizBuilder() {
         timeLimitMinutes: Number(minutes) || null,
         totalMarks: cap,
         questions: questions.map(toPayload),
-        guardMode,
-        guardLimit: Number(guardLimit) || 3,
       }
 
       if (isEdit) {
@@ -175,15 +182,18 @@ export default function QuizBuilder() {
           description: description.trim() || null,
           timeLimitMinutes: Number(minutes) || null,
           totalMarks: cap,
-          guardMode,
-          guardLimit: Number(guardLimit) || 3,
         })
         await updateQuiz(created.id, body)
         if (publish) await publishQuiz(created.id)
       }
 
-      if (category === 'QUIZ' && courseId) navigate(`/teacher/courses/${courseId}`)
-      else navigate('/teacher/quizzes')
+      if (category === 'QUIZ' && courseId) {
+        navigate(`/teacher/courses/${courseId}`)
+      } else if (classId) {
+        navigate(`/teacher/classes/${classId}`)
+      } else {
+        navigate('/teacher/classes')
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -191,10 +201,13 @@ export default function QuizBuilder() {
     }
   }
 
-  const label = category === 'QUIZ' ? 'quiz' : (category === 'EXAM' ? 'exam' : 'test')
-  const heading = isEdit ? `Edit ${label}` : `New ${label}`
-  const backTo = category === 'QUIZ' && courseId ? `/teacher/courses/${courseId}` : '/teacher/quizzes'
-  const backLabel = category === 'QUIZ' && courseId ? 'Back to topic' : 'Back to tests & exams'
+  const label = category === 'QUIZ' ? 'quiz' : 'exam'
+  const heading = isReadOnly ? `View ${label}` : (isEdit ? `Edit ${label}` : `New ${label}`)
+  
+  const backTo = category === 'QUIZ' && courseId 
+    ? `/teacher/courses/${courseId}` 
+    : (classId ? `/teacher/classes/${classId}` : '/teacher/classes')
+  const backLabel = category === 'QUIZ' && courseId ? 'Back to topic' : 'Back to class'
 
   if (!loaded) {
     return (
@@ -208,30 +221,27 @@ export default function QuizBuilder() {
     <AppLayout role="teacher" title={heading}>
       <Link to={backTo} className="back">← {backLabel}</Link>
 
+      {isReadOnly && (
+        <div className="flag-note" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span><strong>Read-only mode:</strong> This assessment has been published and can no longer be edited.</span>
+        </div>
+      )}
+
       <section className="panel quiz-meta">
         <label className="field">
           <span>Title</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={category === 'EXAM' ? 'Term 1 Exam' : (category === 'QUIZ' ? 'Quiz 1: Variables' : 'Test 1: Variables')}
+            placeholder={category === 'EXAM' ? 'Term 1 Exam' : 'Quiz 1: Variables'}
+            disabled={isReadOnly}
           />
         </label>
-
-        {!isEdit && !lockedCourseId && (
-          <label className="field">
-            <span>Type</span>
-            <select className="select" value={category} onChange={(e) => { setCategory(e.target.value); setClassId('') }}>
-              <option value="TEST">Test (for a class)</option>
-              <option value="EXAM">Exam (for a class)</option>
-            </select>
-          </label>
-        )}
 
         {!isEdit && category === 'QUIZ' && !lockedCourseId && (
           <label className="field">
             <span>Topic</span>
-            <select className="select" value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+            <select className="select" value={courseId} onChange={(e) => setCourseId(e.target.value)} disabled={isReadOnly}>
               <option value="">Choose a topic…</option>
               {courses.map((c) => <option key={c.id} value={c.id}>{c.title} ({c.className})</option>)}
             </select>
@@ -241,7 +251,7 @@ export default function QuizBuilder() {
         {!isEdit && category !== 'QUIZ' && !params.get('class') && (
           <label className="field">
             <span>Class</span>
-            <select className="select" value={classId} onChange={(e) => setClassId(e.target.value)}>
+            <select className="select" value={classId} onChange={(e) => setClassId(e.target.value)} disabled={isReadOnly}>
               <option value="">Choose a class…</option>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -257,7 +267,7 @@ export default function QuizBuilder() {
 
         <label className="field">
           <span>Time limit (minutes)</span>
-          <input type="number" min="1" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
+          <input type="number" min="1" value={minutes} onChange={(e) => setMinutes(e.target.value)} disabled={isReadOnly} />
         </label>
 
         <label className="field">
@@ -270,30 +280,14 @@ export default function QuizBuilder() {
             onChange={(e) => setTotalMarks(e.target.value)}
             className={over ? 'is-invalid' : ''}
             aria-invalid={over}
+            disabled={isReadOnly}
           />
         </label>
 
         <label className="field quiz-meta__wide">
           <span>Instructions</span>
-          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
+          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" disabled={isReadOnly} />
         </label>
-
-        <div className="quiz-meta__wide guard">
-          <label className="field">
-            <span>If a student leaves the test page</span>
-            <select className="select" value={guardMode} onChange={(e) => setGuardMode(e.target.value)}>
-              <option value="OFF">Do nothing</option>
-              <option value="RECORD">Record it and show it to me</option>
-              <option value="AUTO">Record it and auto-submit after a set number of times</option>
-            </select>
-          </label>
-          {guardMode === 'AUTO' && (
-            <label className="field marks">
-              <span>Submit after</span>
-              <input type="number" min="1" max="10" value={guardLimit} onChange={(e) => setGuardLimit(e.target.value)} />
-            </label>
-          )}
-        </div>
 
         <p className="hint quiz-meta__wide">
           Students get one attempt. The clock starts when they press Start, and answers are only sent when they press Submit.
@@ -306,16 +300,18 @@ export default function QuizBuilder() {
           <div className="q-card__head">
             <strong>Question {i + 1}</strong>
             <span className="badge">{q.type === 'MULTIPLE_CHOICE' ? 'Multiple choice' : 'Open-ended'}</span>
-            <button type="button" className="link-btn" onClick={() => remove(q.id)} disabled={questions.length === 1}>Remove</button>
+            {!isReadOnly && (
+              <button type="button" className="link-btn" onClick={() => remove(q.id)} disabled={questions.length === 1}>Remove</button>
+            )}
           </div>
 
           <label className="field">
             <span>Question</span>
-            <input value={q.text} onChange={(e) => update(q.id, { text: e.target.value })} placeholder="Type the question" />
+            <input value={q.text} onChange={(e) => update(q.id, { text: e.target.value })} placeholder="Type the question" disabled={isReadOnly} />
           </label>
 
           {q.type === 'MULTIPLE_CHOICE' ? (
-            <fieldset className="options">
+            <fieldset className="options" disabled={isReadOnly}>
               <legend>Options (select the correct one)</legend>
               {q.options.map((o, j) => (
                 <div key={j} className="option">
@@ -325,12 +321,13 @@ export default function QuizBuilder() {
                     checked={q.correct === j}
                     onChange={() => update(q.id, { correct: j })}
                     aria-label={`Option ${j + 1} is correct`}
+                    disabled={isReadOnly}
                   />
-                  <input value={o} onChange={(e) => setOption(q, j, e.target.value)} placeholder={`Option ${j + 1}`} />
-                  {q.options.length > 2 && <button type="button" className="link-btn" onClick={() => removeOption(q, j)}>Remove</button>}
+                  <input value={o} onChange={(e) => setOption(q, j, e.target.value)} placeholder={`Option ${j + 1}`} disabled={isReadOnly} />
+                  {!isReadOnly && q.options.length > 2 && <button type="button" className="link-btn" onClick={() => removeOption(q, j)}>Remove</button>}
                 </div>
               ))}
-              {q.options.length < 5 && <button type="button" className="link-btn" onClick={() => addOption(q)}>+ Add option</button>}
+              {!isReadOnly && q.options.length < 5 && <button type="button" className="link-btn" onClick={() => addOption(q)}>+ Add option</button>}
             </fieldset>
           ) : (
             <p className="hint">Students type their own answer. You’ll mark it by hand after they submit.</p>
@@ -338,15 +335,17 @@ export default function QuizBuilder() {
 
           <label className="field marks">
             <span>Marks</span>
-            <input type="number" min="1" value={q.marks} onChange={(e) => update(q.id, { marks: e.target.value })} />
+            <input type="number" min="1" value={q.marks} onChange={(e) => update(q.id, { marks: e.target.value })} disabled={isReadOnly} />
           </label>
         </section>
       ))}
 
-      <div className="add-q">
-        <button className="btn btn--ghost" onClick={() => setQuestions([...questions, blank('MULTIPLE_CHOICE')])}>+ Multiple choice</button>
-        <button className="btn btn--ghost" onClick={() => setQuestions([...questions, blank('OPEN_ENDED')])}>+ Open-ended</button>
-      </div>
+      {!isReadOnly && (
+        <div className="add-q">
+          <button className="btn btn--ghost" onClick={() => setQuestions([...questions, blank('MULTIPLE_CHOICE')])}>+ Multiple choice</button>
+          <button className="btn btn--ghost" onClick={() => setQuestions([...questions, blank('OPEN_ENDED')])}>+ Open-ended</button>
+        </div>
+      )}
 
       {error && <p className="field__error" role="alert">{error}</p>}
 
@@ -356,15 +355,56 @@ export default function QuizBuilder() {
           <strong>{sumMarks}</strong>
           {cap > 0 ? ` of ${cap}` : ''} marks
           {over && <span className="flag"> — over by {sumMarks - cap}</span>}
-          {under && <span className="flag"> — {cap - sumMarks} marks remaining</span>}
+          {under && !isReadOnly && <span className="flag"> — {cap - sumMarks} marks remaining</span>}
         </span>
         <div>
-          <button className="btn btn--ghost" onClick={() => save(false)} disabled={busy || over || cap < 1}>Save draft</button>
-          <button className="btn btn--primary" onClick={() => save(true)} disabled={busy || !exact || cap < 1}>
-            {busy ? 'Saving…' : 'Publish'}
+          <button className="btn btn--ghost" onClick={() => setPreviewOpen(true)}>
+            Preview
           </button>
+          {!isReadOnly && (
+            <>
+              <button className="btn btn--ghost" onClick={() => save(false)} disabled={busy || over || cap < 1}>Save draft</button>
+              <button className="btn btn--primary" onClick={() => save(true)} disabled={busy || !exact || cap < 1}>
+                {busy ? 'Saving…' : 'Publish'}
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* --- PREVIEW MODAL --- */}
+      {previewOpen && (
+        <Modal title={`Preview: ${title || 'Untitled'}`} onClose={() => setPreviewOpen(false)}>
+          <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '0.5rem' }}>
+            {description && <p className="muted-text" style={{ marginBottom: '1.5rem' }}>{description}</p>}
+            
+            {questions.map((q, i) => (
+              <div key={q.id} style={{ marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--slate-200)' }}>
+                <p className="muted-text" style={{ fontSize: '0.85rem', marginBottom: '0.2rem' }}>
+                  Question {i + 1} of {questions.length} · {q.marks} marks
+                </p>
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>{q.text || <em>Untitled question</em>}</h3>
+                
+                {q.type === 'MULTIPLE_CHOICE' ? (
+                  <div className="q-options">
+                    {q.options.map((o, j) => (
+                      <label key={j} className="q-opt" style={{ cursor: 'default' }}>
+                        <input type="radio" disabled />
+                        {o || <em>Empty option</em>}
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <textarea className="select" rows="3" disabled placeholder="Students will type their answer here..." />
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="confirm-actions" style={{ marginTop: '1rem' }}>
+            <button className="btn btn--primary" onClick={() => setPreviewOpen(false)}>Close Preview</button>
+          </div>
+        </Modal>
+      )}
     </AppLayout>
   )
 }

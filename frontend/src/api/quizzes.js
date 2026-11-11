@@ -18,6 +18,10 @@ export const listPublishedTestsByClass = (classId) =>
 export const listPublishedExamsByClass = (classId) =>
   api.get(`/quizzes/class/${encodeURIComponent(classId)}/exams/published`)
 
+// ADDED: Combined fetch for the Student Class Detail page
+export const listPublishedTestsAndExamsByClass = (classId) =>
+  api.get(`/quizzes/class/${encodeURIComponent(classId)}/published`)
+
 export const listMyTestsAndExams = () => api.get('/quizzes/mine')
 
 export const getQuiz = (id) => api.get(`/quizzes/${encodeURIComponent(id)}`)

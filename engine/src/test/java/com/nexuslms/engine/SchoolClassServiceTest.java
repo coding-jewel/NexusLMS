@@ -8,8 +8,7 @@ import com.nexuslms.engine.exception.NotFoundException;
 import com.nexuslms.engine.models.Role;
 import com.nexuslms.engine.models.SchoolClass;
 import com.nexuslms.engine.models.User;
-import com.nexuslms.engine.repository.SchoolClassRepository;
-import com.nexuslms.engine.repository.UserRepository;
+import com.nexuslms.engine.repository.*;
 import com.nexuslms.engine.service.SchoolClassService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +36,12 @@ class SchoolClassServiceTest {
 
     @Mock SchoolClassRepository classRepository;
     @Mock UserRepository userRepository;
+    // ADDED: New dependencies for gradebook
+    @Mock CourseRepository courseRepository;
+    @Mock AssignmentRepository assignmentRepository;
+    @Mock QuizRepository quizRepository;
+    @Mock GradeRepository gradeRepository;
+
     @InjectMocks SchoolClassService service;
 
     @BeforeEach
@@ -48,7 +53,6 @@ class SchoolClassServiceTest {
             }
             return c;
         });
-        // default: no teachers, no students, until a test overrides
         when(userRepository.findTeachersInClass(anyString(), anyString())).thenReturn(List.of());
         when(userRepository.countStudentsInClass(anyString())).thenReturn(0L);
     }
@@ -171,8 +175,6 @@ class SchoolClassServiceTest {
         assertThrows(NotFoundException.class, () -> service.delete("t1", "c1"));
         verify(classRepository, never()).deleteById(anyString());
     }
-
-    // --- assign / remove teachers ---
 
     @Test
     void assignTeacher_AddsTheClassToTheTeacher() {

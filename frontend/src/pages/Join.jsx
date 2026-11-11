@@ -17,7 +17,7 @@ export default function Join() {
   const { tenant, subdomain } = useTenant()
   const { setSession, logout } = useAuth()
 
-  const [step, setStep] = useState('form') // form | code | waiting
+  const [step, setStep] = useState('form')
   const [form, setForm] = useState({
     code: params.get('code') || '',
     name: '',
@@ -85,9 +85,7 @@ export default function Join() {
         setSession({ token: data.token, user: data.user })
         navigate(homeFor(data.user.role))
       } else {
-        // Teacher: waiting for the school admin to approve. Any session that's still open
-        // belongs to someone else, so clear it first — otherwise "Back to sign in" would
-        // send them to that other person's dashboard.
+        // Teacher: the account is pending approval, so log them out and show the waiting screen.
         logout()
         setWaitingSubdomain(data.subdomain)
         setStep('waiting')
@@ -172,7 +170,7 @@ export default function Join() {
           <form className="auth__card" onSubmit={handleVerify}>
             <h2>Check your email</h2>
             <p className="auth__sub">We sent a 6-digit code to <strong>{form.email}</strong>. It expires in 15 minutes.</p>
-            {import.meta.env.DEV && <p className="auth__note">Development: the code is printed in the backend console.</p>}
+            
 
             <label className="field">
               <span>Verification code</span>

@@ -9,11 +9,7 @@ import com.nexuslms.engine.models.Course;
 import com.nexuslms.engine.models.Role;
 import com.nexuslms.engine.models.SchoolClass;
 import com.nexuslms.engine.models.User;
-import com.nexuslms.engine.repository.AssignmentRepository;
-import com.nexuslms.engine.repository.CourseRepository;
-import com.nexuslms.engine.repository.QuizRepository;
-import com.nexuslms.engine.repository.SchoolClassRepository;
-import com.nexuslms.engine.repository.UserRepository;
+import com.nexuslms.engine.repository.*;
 import com.nexuslms.engine.security.AuthUser;
 import com.nexuslms.engine.service.CourseService;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +40,11 @@ class CourseServiceTest {
     @Mock UserRepository userRepository;
     @Mock AssignmentRepository assignmentRepository;
     @Mock QuizRepository quizRepository;
+    // ADDED: New dependencies for cascading delete
+    @Mock SubmissionRepository submissionRepository;
+    @Mock QuizAttemptRepository quizAttemptRepository;
+    @Mock GradeRepository gradeRepository;
+
     @InjectMocks CourseService service;
 
     private final AuthUser teacher = new AuthUser("u-teacher", "teacher@lincoln.edu", "t1", "TEACHER");
@@ -67,7 +68,6 @@ class CourseServiceTest {
         teacherUser.setRole(Role.TEACHER);
         teacherUser.setClassIds(new ArrayList<>(List.of("c1")));
         when(userRepository.findById("u-teacher")).thenReturn(Optional.of(teacherUser));
-
         when(userRepository.findAllByTenantIdAndRole("t1", "TEACHER")).thenReturn(List.of(teacherUser));
 
         User studentUser = new User();
@@ -80,13 +80,10 @@ class CourseServiceTest {
 
         when(courseRepository.save(any())).thenAnswer(i -> {
             Course c = i.getArgument(0);
-            if (c.getId() == null) {
-                c.setId("course1");
-            }
+            if (c.getId() == null) c.setId("course1");
             return c;
         });
 
-        // respond() asks for the two counts per course. Default 0 is fine.
         when(assignmentRepository.countByCourseId(anyString())).thenReturn(0L);
         when(quizRepository.countQuizzesByCourseId(anyString())).thenReturn(0L);
     }
@@ -126,7 +123,6 @@ class CourseServiceTest {
         when(classRepository.findById("c-foreign")).thenReturn(Optional.of(foreign));
 
         assertThrows(NotFoundException.class, () -> service.create(teacher, new CourseRequest("c-foreign", "Maths", null)));
-
         verify(courseRepository, never()).save(any());
     }
 
@@ -139,9 +135,7 @@ class CourseServiceTest {
         unassigned.setClassIds(new ArrayList<>());
         when(userRepository.findById("u-other")).thenReturn(Optional.of(unassigned));
 
-        assertThrows(InvalidRequestException.class,
-                () -> service.create(otherTeacher, new CourseRequest("c1", "Maths", null)));
-
+        assertThrows(InvalidRequestException.class, () -> service.create(otherTeacher, new CourseRequest("c1", "Maths", null)));
         verify(courseRepository, never()).save(any());
     }
 
@@ -150,7 +144,6 @@ class CourseServiceTest {
         when(courseRepository.existsByTitleAndClassId("Maths", "c1")).thenReturn(true);
 
         assertThrows(DuplicateResourceException.class, () -> service.create(teacher, new CourseRequest("c1", "Maths", null)));
-
         verify(courseRepository, never()).save(any());
     }
 
@@ -218,7 +211,6 @@ class CourseServiceTest {
         when(userRepository.findById("u-loose")).thenReturn(Optional.of(loose));
 
         assertTrue(service.list(new AuthUser("u-loose", "x@lincoln.edu", "t1", "STUDENT")).isEmpty());
-
         verify(courseRepository, never()).findAllByClassId(any());
     }
 
@@ -270,7 +262,6 @@ class CourseServiceTest {
         when(courseRepository.findById("a")).thenReturn(Optional.of(course("a", "t1", "c1", "u-teacher", false)));
 
         assertThrows(NotFoundException.class, () -> service.publish(otherTeacher, "a"));
-
         verify(courseRepository, never()).save(any());
     }
 
@@ -284,6 +275,8 @@ class CourseServiceTest {
     @Test
     void delete_OwnEmptyCourse_Success() {
         when(courseRepository.findById("a")).thenReturn(Optional.of(course("a", "t1", "c1", "u-teacher", false)));
+        when(assignmentRepository.findAllByCourseId("a")).thenReturn(List.of());
+        when(quizRepository.findAllQuizzesByCourseId("a")).thenReturn(List.of());
 
         service.delete(teacher, "a");
 
@@ -291,17 +284,27 @@ class CourseServiceTest {
     }
 
     @Test
-    void delete_CourseWithAssignmentsOrQuizzes_IsRefused() {
+    void delete_CourseWithChildren_CascadesDelete() {
         when(courseRepository.findById("a")).thenReturn(Optional.of(course("a", "t1", "c1", "u-teacher", false)));
-        when(assignmentRepository.existsByCourseId("a")).thenReturn(true);
 
-        assertThrows(InvalidRequestException.class, () -> service.delete(teacher, "a"));
+        // Mock assignments and quizzes
+        com.nexuslms.engine.models.Assignment a1 = new com.nexuslms.engine.models.Assignment();
+        a1.setId("asg1");
+        com.nexuslms.engine.models.Quiz q1 = new com.nexuslms.engine.models.Quiz();
+        q1.setId("quiz1");
 
-        when(assignmentRepository.existsByCourseId("a")).thenReturn(false);
-        when(quizRepository.existsQuizByCourseId("a")).thenReturn(true);
+        when(assignmentRepository.findAllByCourseId("a")).thenReturn(List.of(a1));
+        when(quizRepository.findAllQuizzesByCourseId("a")).thenReturn(List.of(q1));
 
-        assertThrows(InvalidRequestException.class, () -> service.delete(teacher, "a"));
-        verify(courseRepository, never()).deleteById(any());
+        service.delete(teacher, "a");
+
+        // Verify all cascading deletes are called
+        verify(submissionRepository).deleteByAssignmentIdIn(List.of("asg1"));
+        verify(quizAttemptRepository).deleteByQuizIdIn(List.of("quiz1"));
+        verify(gradeRepository).deleteByCourseId("a");
+        verify(assignmentRepository).deleteByCourseId("a");
+        verify(quizRepository).deleteByCourseId("a");
+        verify(courseRepository).deleteById("a");
     }
 
     @Test
@@ -309,7 +312,6 @@ class CourseServiceTest {
         when(courseRepository.findById("a")).thenReturn(Optional.of(course("a", "t1", "c1", "u-teacher", false)));
 
         assertThrows(NotFoundException.class, () -> service.delete(otherTeacher, "a"));
-
         verify(courseRepository, never()).deleteById(any());
     }
 }

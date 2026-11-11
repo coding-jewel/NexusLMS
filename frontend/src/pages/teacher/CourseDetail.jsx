@@ -7,9 +7,9 @@ import {
   getCourse,
   publishCourse,
   unpublishCourse,
-  getCoursePeople,
   uploadCourseAttachment,
   removeCourseAttachment,
+  updateCourse, // Make sure this is exported from your api/courses.js
 } from '../../api/courses'
 import {
   listAssignmentsByCourse,
@@ -21,7 +21,7 @@ import { listQuizzesByCourse, deleteQuiz } from '../../api/quizzes'
 import { getCourseGradebook } from '../../api/gradebook'
 import '../../styles/teacher.css'
 
-const TABS = ['Materials', 'Assignments', 'Quizzes', 'Gradebook', 'People']
+const TABS = ['Materials', 'Assignments', 'Quizzes', 'Gradebook']
 
 const fmtDue = (v) => {
   if (!v) return '—'
@@ -105,11 +105,15 @@ export default function CourseDetail() {
   const [course, setCourse] = useState(null)
   const [assignments, setAssignments] = useState([])
   const [quizzes, setQuizzes] = useState([])
-  const [people, setPeople] = useState(null)
   const [gradebook, setGradebook] = useState(null)
   const [tab, setTab] = useState('Materials')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  // NEW: States for editing the topic
+  const [editOpen, setEditOpen] = useState(false)
+  const [editForm, setEditForm] = useState({ title: '', description: '' })
+  const [editError, setEditError] = useState('')
 
   const [assignOpen, setAssignOpen] = useState(false)
   const [assignForm, setAssignForm] = useState({ title: '', description: '', due: '', totalMarks: '100' })
@@ -136,7 +140,6 @@ export default function CourseDetail() {
     }
     listAssignmentsByCourse(id).then(setAssignments).catch(() => setAssignments([]))
     listQuizzesByCourse(id).then(setQuizzes).catch(() => setQuizzes([]))
-    getCoursePeople(id).then(setPeople).catch(() => setPeople({ teacher: null, students: [] }))
     getCourseGradebook(id).then(setGradebook).catch(() => setGradebook(null))
   }
   useEffect(() => { load() }, [id])
@@ -150,6 +153,40 @@ export default function CourseDetail() {
       setCourse(updated)
     } catch (err) {
       setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const openEdit = () => {
+    setEditForm({ title: course.title, description: course.description || '' })
+    setEditError('')
+    setEditOpen(true)
+  }
+
+    const handleSaveEdit = async (e) => {
+    e.preventDefault()
+    if (!editForm.title.trim()) return
+    setEditError('')
+    setBusy(true)
+    try {
+      const updated = await updateCourse(course.id, {
+        classId: course.classId,
+        title: editForm.title.trim(),
+        description: editForm.description.trim() || null,
+      })
+      
+      // FIXED: Safety net to prevent the endless loading screen
+      if (updated) {
+        setCourse(updated)
+        setEditOpen(false)
+      } else {
+        await load() 
+        setEditOpen(false)
+      }
+      
+    } catch (err) {
+      setEditError(err.message)
     } finally {
       setBusy(false)
     }
@@ -278,7 +315,7 @@ export default function CourseDetail() {
         <section className="panel">
           <div className="empty">
             <p className="field__error" role="alert">{error}</p>
-            <Link to="/teacher/courses" className="btn btn--ghost">Back to topics</Link>
+            <Link to="/teacher/classes" className="btn btn--ghost">Back to classes</Link>
           </div>
         </section>
       </AppLayout>
@@ -294,21 +331,23 @@ export default function CourseDetail() {
   }
 
   const materials = course.attachmentUrls ?? []
-  const studentCount = people?.students?.length ?? 0
 
   return (
     <AppLayout role="teacher" title={course.title}>
-      <Link to="/teacher/courses" className="back">← My topics</Link>
+      <Link to={`/teacher/classes/${course.classId}`} className="back">← Back to class</Link>
 
       <div className="page-head">
-        <p>{course.className} · {studentCount} {studentCount === 1 ? 'student' : 'students'}</p>
-        <button
-          className={`btn ${course.published ? 'btn--ghost' : 'btn--primary'}`}
-          onClick={togglePublished}
-          disabled={busy}
-        >
-          {busy ? 'Working…' : (course.published ? 'Unpublish' : 'Publish topic')}
-        </button>
+        <p>{course.className}</p>
+        <div style={{ display: 'flex', gap: '0.8rem' }}>
+          <button className="btn btn--ghost" onClick={openEdit}>Edit topic</button>
+          <button
+            className={`btn ${course.published ? 'btn--ghost' : 'btn--primary'}`}
+            onClick={togglePublished}
+            disabled={busy}
+          >
+            {busy ? 'Working…' : (course.published ? 'Unpublish' : 'Publish topic')}
+          </button>
+        </div>
       </div>
 
       <div className="tabs" role="tablist">
@@ -324,6 +363,8 @@ export default function CourseDetail() {
       </div>
 
       <section className="panel" role="tabpanel">
+        {/* ... (Materials, Assignments, Quizzes, Gradebook tabs stay exactly the same) ... */}
+        
         {tab === 'Materials' && (
           <>
             <div className="panel__head">
@@ -406,13 +447,13 @@ export default function CourseDetail() {
                     <div className="rows__end">
                       <span className={`badge ${q.published ? 'badge--live' : ''}`}>{q.published ? 'Published' : 'Draft'}</span>
                       
-                      <Link
-                        to={`/teacher/quizzes/${q.id}/edit`}
-                        className={`btn btn--ghost btn--sm ${q.published ? 'btn--disabled' : ''}`}
-                        style={q.published ? { pointerEvents: 'none', opacity: 0.5 } : {}}
-                      >Edit</Link>
+                      {q.published ? (
+                        <Link to={`/teacher/quizzes/${q.id}/edit?preview=true`} className="btn btn--ghost btn--sm">View</Link>
+                      ) : (
+                        <Link to={`/teacher/quizzes/${q.id}/edit`} className="btn btn--ghost btn--sm">Edit</Link>
+                      )}
                       
-                      <Link to={`/teacher/quizzes/${q.id}/mark`} className="btn btn--ghost btn--sm">Mark answers</Link>
+                      <Link to={`/teacher/courses/${course.id}/quizzes/${q.id}/mark`} className="btn btn--ghost btn--sm">View Scores</Link>
                       <button className="btn btn--ghost btn--sm btn--danger" onClick={() => openConfirm('quiz', q)}>Delete</button>
                     </div>
                   </li>
@@ -423,38 +464,43 @@ export default function CourseDetail() {
         )}
 
         {tab === 'Gradebook' && <GradebookView gb={gradebook} />}
-
-        {tab === 'People' && (
-          <>
-            <div className="panel__head"><h2>People</h2></div>
-            <h3 className="subhead">Teacher</h3>
-            {people?.teacher ? (
-              <ul className="rows">
-                <li>
-                  <strong>{people.teacher.name}</strong>
-                  <span>{people.teacher.email}</span>
-                </li>
-              </ul>
-            ) : (
-              <p className="empty">Couldn’t load the teacher.</p>
-            )}
-            <h3 className="subhead">Students ({studentCount})</h3>
-            {studentCount === 0 ? (
-              <p className="empty">No students in this class yet.</p>
-            ) : (
-              <ul className="rows">
-                {people.students.map((s) => (
-                  <li key={s.id}>
-                    <strong>{s.name}</strong>
-                    <span>{s.email}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
       </section>
 
+      {/* NEW: Edit Topic Modal */}
+      {editOpen && (
+        <Modal title="Edit topic" onClose={() => setEditOpen(false)}>
+          <form className="modal__form" onSubmit={handleSaveEdit}>
+            <label className="field">
+              <span>Topic title</span>
+              <input 
+                value={editForm.title} 
+                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} 
+                required 
+              />
+            </label>
+            <label className="field">
+              <span>Description</span>
+              <textarea 
+                className="select"
+                rows="3"
+                value={editForm.description} 
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} 
+                placeholder="Optional" 
+              />
+            </label>
+            {editError && <p className="field__error" role="alert">{editError}</p>}
+            <div className="confirm-actions">
+              <button className="btn btn--ghost" type="button" onClick={() => setEditOpen(false)}>Cancel</button>
+              <button className="btn btn--primary" type="submit" disabled={busy || !editForm.title.trim()}>
+                {busy ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ... (Rest of the Modals: viewAssignment, assignOpen, materialOpen, confirm stay exactly the same) ... */}
+      
       {viewAssignment && (
         <Modal title={viewAssignment.title} onClose={() => setViewAssignment(null)}>
           <div className="modal__form">

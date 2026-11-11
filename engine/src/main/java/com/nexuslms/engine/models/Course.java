@@ -3,6 +3,8 @@ package com.nexuslms.engine.models;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -10,106 +12,60 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Document("courses")
+@CompoundIndex(name = "class_course_title_unique", def = "{'classId': 1, 'title': 1}", unique = true)
 public class Course {
     @Id
     private String id;
 
     @NotBlank(message = "Tenant ID is required")
+    @Indexed
     private String tenantId;
 
     @NotBlank(message = "Class ID is required")
     private String classId;
 
     @NotBlank(message = "Teacher ID is required")
+    @Indexed
     private String teacherId;
 
     @NotBlank(message = "Course title is required")
     private String title;
 
     private String description;
-
     private boolean published = false;
-
-    // Notes and materials the teacher has uploaded for this course.
     private List<String> attachmentUrls = new ArrayList<>();
 
     @CreatedDate
     private LocalDateTime createdAt;
 
-    //Constructor
     public Course() {}
 
-    //Getters and Setters
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    public String getId() {
-        return id;
-    }
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+    public String getClassId() { return classId; }
+    public void setClassId(String classId) { this.classId = classId; }
 
-    public String getTenantId() {
-        return tenantId;
-    }
+    public String getTeacherId() { return teacherId; }
+    public void setTeacherId(String teacherId) { this.teacherId = teacherId; }
 
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
-    }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
 
-    public String getClassId() {
-        return classId;
-    }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    public void setClassId(String classId) {
-        this.classId = classId;
-    }
+    public boolean isPublished() { return published; }
+    public void setPublished(boolean published) { this.published = published; }
 
-    public String getTeacherId() {
-        return teacherId;
-    }
-
-    public void setTeacherId(String teacherId) {
-        this.teacherId = teacherId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public boolean isPublished() {
-        return published;
-    }
-
-    public void setPublished(boolean published) {
-        this.published = published;
-    }
-
-    public List<String> getAttachmentUrls() {
-        return attachmentUrls;
-    }
-
+    public List<String> getAttachmentUrls() { return attachmentUrls; }
     public void setAttachmentUrls(List<String> attachmentUrls) {
         this.attachmentUrls = attachmentUrls == null ? new ArrayList<>() : attachmentUrls;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

@@ -73,13 +73,11 @@ public class StudentService {
         }
     }
 
-    /** Everything the student hasn't done yet. Sorted by soonest due date. */
     public List<StudentTodoResponse> myTodo(AuthUser auth) {
         User me = me(auth);
         LocalDateTime now = LocalDateTime.now();
         List<StudentTodoResponse> out = new ArrayList<>();
 
-        // Cache of what they've already done.
         Set<String> submittedAssignmentIds = new HashSet<>();
         for (Submission s : submissionRepository.findAllByStudentId(me.getId())) {
             submittedAssignmentIds.add(s.getAssignmentId());
@@ -97,7 +95,6 @@ public class StudentService {
         for (String classId : me.getClassIds()) {
             String className = classNames.getOrDefault(classId, "");
 
-            // Assignments and topic quizzes
             for (Course c : courseRepository.findAllByClassId(classId)) {
                 if (!c.isPublished()) continue;
 
@@ -119,13 +116,6 @@ public class StudentService {
                 }
             }
 
-            // Class-level tests and exams
-            for (Quiz q : quizRepository.findPublishedByClassIdAndCategory(classId, "TEST")) {
-                if (!attemptedQuizIds.contains(q.getId())) {
-                    out.add(new StudentTodoResponse(
-                            q.getId(), "TEST", q.getTitle(), className, null, null, null, false));
-                }
-            }
             for (Quiz q : quizRepository.findPublishedByClassIdAndCategory(classId, "EXAM")) {
                 if (!attemptedQuizIds.contains(q.getId())) {
                     out.add(new StudentTodoResponse(
@@ -134,7 +124,6 @@ public class StudentService {
             }
         }
 
-        // Sort: Overdue first, then by due date (nulls last), then by title
         out.sort(Comparator
                 .comparing(StudentTodoResponse::overdue).reversed()
                 .thenComparing(StudentTodoResponse::dueDate, Comparator.nullsLast(Comparator.naturalOrder()))
@@ -214,7 +203,6 @@ public class StudentService {
         List<StudentAssessmentResponse> out = new ArrayList<>();
         for (String classId : me.getClassIds()) {
             String className = classNames.getOrDefault(classId, "");
-            addAssessmentsForClass(me, classId, className, "TEST", out);
             addAssessmentsForClass(me, classId, className, "EXAM", out);
         }
 
@@ -227,9 +215,9 @@ public class StudentService {
 
     public StudentGradesResponse myGrades(AuthUser auth) {
         User me = me(auth);
-        Map<String, String> classNames = new HashMap<>();
+        Map<String, SchoolClass> classesById = new HashMap<>();
         for (String classId : me.getClassIds()) {
-            classRepository.findById(classId).ifPresent(c -> classNames.put(c.getId(), c.getName()));
+            classRepository.findById(classId).ifPresent(c -> classesById.put(c.getId(), c));
         }
 
         List<StudentGradesResponse.CourseGrades> courseGrades = new ArrayList<>();
@@ -257,19 +245,69 @@ public class StudentService {
                 }
 
                 courseGrades.add(new StudentGradesResponse.CourseGrades(
-                        c.getId(), c.getTitle(), classNames.getOrDefault(c.getClassId(), ""), items));
+                        c.getId(), c.getTitle(), classesById.get(classId).getName(), items));
             }
         }
         courseGrades.sort(Comparator.comparing(StudentGradesResponse.CourseGrades::courseName, String.CASE_INSENSITIVE_ORDER));
 
         List<StudentGradesResponse.ClassResult> classResults = new ArrayList<>();
         for (String classId : me.getClassIds()) {
-            String className = classNames.getOrDefault(classId, "");
-            addClassResults(me, classId, className, "TEST", classResults);
+            String className = classesById.get(classId).getName();
             addClassResults(me, classId, className, "EXAM", classResults);
         }
 
-        return new StudentGradesResponse(courseGrades, classResults);
+        List<StudentGradesResponse.ClassSummary> classSummaries = new ArrayList<>();
+        for (SchoolClass sc : classesById.values()) {
+            double assignEarned = 0, assignPossible = 0;
+            double quizEarned = 0, quizPossible = 0;
+            double examEarned = 0, examPossible = 0;
+
+            for (StudentGradesResponse.CourseGrades cg : courseGrades) {
+                if (!cg.className().equals(sc.getName())) continue;
+                for (StudentGradesResponse.GradeItem it : cg.items()) {
+                    if (it.score() == null) continue;
+                    if ("ASSIGNMENT".equals(it.kind())) {
+                        assignEarned += it.score(); assignPossible += it.totalMarks();
+                    } else if ("QUIZ".equals(it.kind())) {
+                        quizEarned += it.score(); quizPossible += it.totalMarks();
+                    }
+                }
+            }
+
+            for (StudentGradesResponse.ClassResult cr : classResults) {
+                if (!cr.className().equals(sc.getName())) continue;
+                if (cr.released() && cr.score() != null) {
+                    examEarned += cr.score(); examPossible += cr.totalMarks();
+                }
+            }
+
+            Double aPct = assignPossible > 0 ? (assignEarned / assignPossible) * 100 : null;
+            Double qPct = quizPossible > 0 ? (quizEarned / quizPossible) * 100 : null;
+            Double ePct = examPossible > 0 ? (examEarned / examPossible) * 100 : null;
+
+            Double overall = null;
+            if ("WEIGHTED".equals(sc.getGradingMethod())) {
+                double weightSum = 0, weightedSum = 0;
+                if (aPct != null) { weightSum += sc.getAssignmentWeight(); weightedSum += aPct * sc.getAssignmentWeight(); }
+                if (qPct != null) { weightSum += sc.getQuizWeight(); weightedSum += qPct * sc.getQuizWeight(); }
+                if (ePct != null) { weightSum += sc.getExamWeight(); weightedSum += ePct * sc.getExamWeight(); }
+                if (weightSum > 0) overall = weightedSum / weightSum;
+            } else {
+                double totalEarned = assignEarned + quizEarned + examEarned;
+                double totalPossible = assignPossible + quizPossible + examPossible;
+                if (totalPossible > 0) overall = (totalEarned / totalPossible) * 100;
+            }
+
+            classSummaries.add(new StudentGradesResponse.ClassSummary(
+                    sc.getId(), sc.getName(), aPct, qPct, ePct, overall,
+                    sc.getGradingMethod(),
+                    sc.getAssignmentWeight(),
+                    sc.getQuizWeight(),
+                    sc.getExamWeight()
+            ));
+        }
+
+        return new StudentGradesResponse(classSummaries, courseGrades, classResults);
     }
 
     private void addAssessmentsForClass(User me, String classId, String className, String category,

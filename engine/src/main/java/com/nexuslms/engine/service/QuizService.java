@@ -60,8 +60,7 @@ public class QuizService {
         quiz.setTotalMarks(request.totalMarks());
         quiz.setPublished(false);
         quiz.setResultsReleased(category == QuizCategory.QUIZ);
-        quiz.setGuardMode(normalizeMode(request.guardMode()));
-        quiz.setGuardLimit(normalizeLimit(request.guardLimit()));
+        // REMOVED: setGuardMode and setGuardLimit
 
         if (category == QuizCategory.QUIZ) {
             if (request.courseId() == null || request.courseId().isBlank()) {
@@ -115,8 +114,7 @@ public class QuizService {
         quiz.setTimeLimitMinutes(request.timeLimitMinutes());
         quiz.setTotalMarks(request.totalMarks());
         quiz.setQuestions(questions);
-        if (request.guardMode() != null) quiz.setGuardMode(normalizeMode(request.guardMode()));
-        if (request.guardLimit() != null) quiz.setGuardLimit(normalizeLimit(request.guardLimit()));
+        // REMOVED: setGuardMode and setGuardLimit
         return quizRepository.save(quiz);
     }
 
@@ -148,6 +146,10 @@ public class QuizService {
 
     public List<Quiz> getPublishedExamsByClass(String classId) {
         return quizRepository.findPublishedByClassIdAndCategory(classId, "EXAM");
+    }
+
+    public List<Quiz> getPublishedTestsAndExamsByClass(String classId) {
+        return quizRepository.findPublishedTestsAndExamsByClassId(classId);
     }
 
     public Optional<Quiz> getQuizById(String id) {
@@ -216,17 +218,5 @@ public class QuizService {
                 .orElseThrow(() -> new NotFoundException("Quiz not found"));
     }
 
-    private static String normalizeMode(String raw) {
-        if (raw == null) return "RECORD";
-        String v = raw.trim().toUpperCase();
-        return switch (v) {
-            case "OFF", "RECORD", "AUTO" -> v;
-            default -> "RECORD";
-        };
-    }
-
-    private static int normalizeLimit(Integer raw) {
-        if (raw == null) return 3;
-        return Math.max(1, Math.min(raw, 10));
-    }
+    // REMOVED: normalizeMode and normalizeLimit
 }

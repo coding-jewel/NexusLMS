@@ -1,7 +1,6 @@
 package com.nexuslms.engine.controller;
 
 import com.nexuslms.engine.dto.GradeAttemptRequest;
-import com.nexuslms.engine.dto.QuizAttemptRequest;
 import com.nexuslms.engine.models.QuizAttempt;
 import com.nexuslms.engine.security.AuthUser;
 import com.nexuslms.engine.service.QuizAttemptService;
@@ -13,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/quiz-attempts")
@@ -24,14 +24,41 @@ public class QuizAttemptController {
         this.quizAttemptService = quizAttemptService;
     }
 
+    public record SubmitAnswersRequest(Map<String, String> answers) {}
+
     @PreAuthorize("hasRole('STUDENT')")
-    @PostMapping
-    public ResponseEntity<QuizAttempt> submitAttempt(@Valid @RequestBody QuizAttemptRequest request,
-                                                     @AuthenticationPrincipal AuthUser auth) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(quizAttemptService.submitAttempt(auth, request));
+    @PostMapping("/start")
+    public ResponseEntity<QuizAttempt> start(@RequestBody Map<String, String> body,
+                                             @AuthenticationPrincipal AuthUser auth) {
+        String quizId = body.get("quizId");
+        if (quizId == null || quizId.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(quizAttemptService.startAttempt(auth, quizId));
     }
 
-    /** The signed-in student's own attempt at a quiz, or 404 if they haven't attempted. */
+    @PreAuthorize("hasRole('STUDENT')")
+    @PostMapping("/{id}/submit")
+    public ResponseEntity<QuizAttempt> submit(@PathVariable String id,
+                                              @RequestBody SubmitAnswersRequest request,
+                                              @AuthenticationPrincipal AuthUser auth) {
+        return ResponseEntity.ok(quizAttemptService.submitAttempt(auth, id, request.answers()));
+    }
+
+    // NEW: Endpoint to abandon an attempt when the student closes the tab
+    @PreAuthorize("hasRole('STUDENT')")
+    @PostMapping("/{id}/abandon")
+    public ResponseEntity<Void> abandon(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        quizAttemptService.abandonAttempt(auth, id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping("/mine")
+    public ResponseEntity<List<QuizAttempt>> getMyAttempts(@AuthenticationPrincipal AuthUser auth) {
+        return ResponseEntity.ok(quizAttemptService.getAllAttemptsByStudent(auth.userId()));
+    }
+
     @PreAuthorize("hasRole('STUDENT')")
     @GetMapping("/quiz/{quizId}/mine")
     public ResponseEntity<QuizAttempt> myAttempt(@PathVariable String quizId,

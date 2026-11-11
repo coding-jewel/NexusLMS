@@ -12,6 +12,8 @@ export const unpublishCourse = (id) => api.patch(`/courses/${encodeURIComponent(
 
 export const deleteCourse = (id) => api.delete(`/courses/${encodeURIComponent(id)}`)
 
+export const updateCourse = (id, data) => api.put(`/courses/${encodeURIComponent(id)}`, data)
+
 export const getCoursePeople = (id) => api.get(`/courses/${encodeURIComponent(id)}/people`)
 
 export const uploadCourseAttachment = (id, file) => {

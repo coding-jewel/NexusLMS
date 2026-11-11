@@ -102,9 +102,12 @@ public class RegistrationService {
 
         try {
             emailService.sendVerificationCode(email, pending.getSchoolName(), code);
-        } catch (EmailDeliveryException e) {
-            pendingRepository.deleteById(subdomain); // don't keep the address blocked for an email that never arrived
-            throw e;
+        } catch (Exception e) { // FIXED: Catch ALL exceptions to guarantee cleanup
+            pendingRepository.deleteById(subdomain); // Free up the subdomain immediately
+            if (e instanceof EmailDeliveryException) {
+                throw e;
+            }
+            throw new EmailDeliveryException("Failed to send the verification email. Please check your connection and try again.");
         }
         return response(pending);
     }
@@ -170,7 +173,15 @@ public class RegistrationService {
         pending.setExpiresAt(now.plus(Duration.ofMinutes(CODE_MINUTES)));
         pendingRepository.save(pending);
 
-        emailService.sendVerificationCode(pending.getEmail(), pending.getSchoolName(), code);
+        try {
+            emailService.sendVerificationCode(pending.getEmail(), pending.getSchoolName(), code);
+        } catch (Exception e) {
+            pendingRepository.deleteById(subdomain);
+            if (e instanceof EmailDeliveryException) {
+                throw e;
+            }
+            throw new EmailDeliveryException("Failed to resend the verification email.");
+        }
         return response(pending);
     }
 

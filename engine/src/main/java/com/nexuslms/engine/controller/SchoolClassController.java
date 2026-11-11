@@ -1,9 +1,6 @@
 package com.nexuslms.engine.controller;
 
-import com.nexuslms.engine.dto.AssignTeacherRequest;
-import com.nexuslms.engine.dto.ClassRequest;
-import com.nexuslms.engine.dto.ClassResponse;
-import com.nexuslms.engine.dto.UserResponse;
+import com.nexuslms.engine.dto.*;
 import com.nexuslms.engine.security.AuthUser;
 import com.nexuslms.engine.service.SchoolClassService;
 import jakarta.validation.Valid;
@@ -25,17 +22,57 @@ public class SchoolClassController {
         this.schoolClassService = schoolClassService;
     }
 
+    // Request payload for updating grading settings
+    public record GradingSettingsRequest(String gradingMethod, int assignmentWeight, int quizWeight, int examWeight) {}
+
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<ClassResponse> create(@Valid @RequestBody ClassRequest request, @AuthenticationPrincipal AuthUser auth) {
         return ResponseEntity.status(HttpStatus.CREATED).body(schoolClassService.create(auth.tenantId(), request));
     }
 
-    // Teachers can see their school's classes too, because they share class codes with students.
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}")
+    public ClassResponse update(@PathVariable String id, @Valid @RequestBody ClassRequest request, @AuthenticationPrincipal AuthUser auth) {
+        return schoolClassService.update(auth.tenantId(), id, request);
+    }
+
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @GetMapping
     public List<ClassResponse> list(@AuthenticationPrincipal AuthUser auth) {
         return schoolClassService.list(auth.tenantId());
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'STUDENT')")
+    @GetMapping("/{id}")
+    public ClassResponse getClass(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        return schoolClassService.getClass(auth.tenantId(), id, auth);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'STUDENT')")
+    @GetMapping("/{id}/people")
+    public ClassPeopleResponse getClassPeople(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        return schoolClassService.getClassPeople(auth.tenantId(), id, auth);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @GetMapping("/{id}/gradebook")
+    public ClassGradebookResponse getClassGradebook(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
+        return schoolClassService.getClassGradebook(auth.tenantId(), id, auth);
+    }
+
+    @PreAuthorize("hasRole('TEACHER')")
+    @PutMapping("/{id}/grading")
+    public ClassResponse updateGradingSettings(@PathVariable String id,
+                                               @RequestBody GradingSettingsRequest request,
+                                               @AuthenticationPrincipal AuthUser auth) {
+        return schoolClassService.updateGradingSettings(
+                auth.tenantId(), id, auth,
+                request.gradingMethod(),
+                request.assignmentWeight(),
+                request.quizWeight(),
+                request.examWeight()
+        );
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -71,5 +108,14 @@ public class SchoolClassController {
     @GetMapping("/{id}/students")
     public List<UserResponse> students(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
         return schoolClassService.students(auth.tenantId(), id, auth);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}/students/{studentId}")
+    public ResponseEntity<Void> removeStudent(@PathVariable String id,
+                                              @PathVariable String studentId,
+                                              @AuthenticationPrincipal AuthUser auth) {
+        schoolClassService.removeStudent(auth.tenantId(), id, studentId);
+        return ResponseEntity.noContent().build();
     }
 }

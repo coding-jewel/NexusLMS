@@ -4,43 +4,48 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 
 @Document("quiz_attempts")
+@CompoundIndexes({
+        @CompoundIndex(name = "expiry_lookup_idx", def = "{ 'submitted': 1, 'expiresAt': 1 }"),
+        @CompoundIndex(name = "quiz_student_unique", def = "{'quizId': 1, 'studentId': 1}", unique = true)
+})
 public class QuizAttempt {
     @Id
     private String id;
 
     @NotBlank(message = "Tenant ID is required")
+    @Indexed
     private String tenantId;
 
     @NotBlank(message = "Quiz ID is required")
     private String quizId;
 
     @NotBlank(message = "Student ID is required")
+    @Indexed
     private String studentId;
 
     @NotNull(message = "Answers are required")
     private Map<String, String> answers;
 
     private Integer score;
-
     private boolean graded = false;
-
-    // Client-reported count of times the student left the test page.
-    // A deterrent, not a proof — recorded for the teacher to see.
-    private int leftPage = 0;
+    private LocalDateTime startedAt;
+    private LocalDateTime expiresAt;
+    private boolean submitted = false;
+    private LocalDateTime submittedAt;
 
     @CreatedDate
     private LocalDateTime attemptedAt;
 
-    //Constructor
     public QuizAttempt() {}
-
-    //Getters and Setters
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -63,8 +68,17 @@ public class QuizAttempt {
     public boolean isGraded() { return graded; }
     public void setGraded(boolean graded) { this.graded = graded; }
 
-    public int getLeftPage() { return leftPage; }
-    public void setLeftPage(int leftPage) { this.leftPage = leftPage; }
+    public LocalDateTime getStartedAt() { return startedAt; }
+    public void setStartedAt(LocalDateTime startedAt) { this.startedAt = startedAt; }
+
+    public LocalDateTime getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
+
+    public boolean isSubmitted() { return submitted; }
+    public void setSubmitted(boolean submitted) { this.submitted = submitted; }
+
+    public LocalDateTime getSubmittedAt() { return submittedAt; }
+    public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
 
     public LocalDateTime getAttemptedAt() { return attemptedAt; }
     public void setAttemptedAt(LocalDateTime attemptedAt) { this.attemptedAt = attemptedAt; }

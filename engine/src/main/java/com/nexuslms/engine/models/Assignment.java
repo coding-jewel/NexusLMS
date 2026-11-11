@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -16,12 +17,15 @@ public class Assignment {
     private String id;
 
     @NotBlank(message = "Tenant ID is required")
+    @Indexed
     private String tenantId;
 
     @NotBlank(message = "Course ID is required")
+    @Indexed
     private String courseId;
 
     @NotBlank(message = "Teacher ID is required")
+    @Indexed
     private String teacherId;
 
     @NotBlank(message = "Title is required")
@@ -32,19 +36,13 @@ public class Assignment {
     @NotNull(message = "Due date is required")
     private LocalDateTime dueDate;
 
-    // What this assignment is out of. Defaults to 100 for older documents
-    // that were created before this field existed.
     private int totalMarks = 100;
-
     private List<String> attachmentUrls = new ArrayList<>();
 
     @CreatedDate
     private LocalDateTime createdAt;
 
-    //Constructor
     public Assignment() {}
-
-    //Getters and Setters
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }

@@ -91,13 +91,17 @@ export default function StudentDashboard() {
             <div className="class-sections">
               {data.topics.length === 0 ? (
                 <section className="panel">
-                  <p className="empty">You aren’t enrolled in any topics yet.</p>
+                  <p className="empty">
+                    {classCount === 0 
+                      ? "You haven't joined any classes yet. Use the button above to join one with a code from your teacher."
+                      : "No topics have been published for your classes yet."}
+                  </p>
                 </section>
               ) : (
                 <>
                   <div className="panel__head">
                     <h2>Recent topics</h2>
-                    <Link to="/student/topics" className="btn btn--ghost btn--sm">View all</Link>
+                    <Link to="/student/classes" className="btn btn--ghost btn--sm">View all classes</Link>
                   </div>
                   <div className="course-grid">
                     {data.topics.slice(0, 4).map((t, i) => (

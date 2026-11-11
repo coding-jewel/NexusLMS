@@ -50,15 +50,12 @@ public class TeacherStatsService {
         List<Course> courses = courseRepository.findAllByTeacherId(teacherId);
 
         long totalAssignments = 0;
-        long totalQuizzes = 0;
         List<TeacherStatsResponse.ToGrade> waiting = new ArrayList<>();
 
-        // Topic-level work: assignments and quizzes.
         for (Course c : courses) {
             List<Assignment> assignments = assignmentRepository.findAllByCourseId(c.getId());
             List<Quiz> quizzes = quizRepository.findAllQuizzesByCourseId(c.getId());
             totalAssignments += assignments.size();
-            totalQuizzes += quizzes.size();
 
             for (Assignment a : assignments) {
                 long n = submissionRepository.countByAssignmentIdAndGradedFalse(a.getId());
@@ -76,24 +73,15 @@ public class TeacherStatsService {
             }
         }
 
-        // Class-level work: tests and exams.
         for (String classId : me.getClassIds()) {
-            List<Quiz> classTests = quizRepository.findAllByClassIdAndCategory(classId, "TEST");
             List<Quiz> classExams = quizRepository.findAllByClassIdAndCategory(classId, "EXAM");
-            totalQuizzes += classTests.size() + classExams.size();
 
-            for (Quiz q : classTests) {
-                long n = quizAttemptRepository.countByQuizIdAndGradedFalse(q.getId());
-                if (n > 0) {
-                    waiting.add(new TeacherStatsResponse.ToGrade(
-                            "quiz", classId, "Class test", q.getId(), q.getTitle(), n));
-                }
-            }
             for (Quiz q : classExams) {
                 long n = quizAttemptRepository.countByQuizIdAndGradedFalse(q.getId());
                 if (n > 0) {
+                    // FIXED: Changed "quiz" to "exam" so the frontend routes correctly
                     waiting.add(new TeacherStatsResponse.ToGrade(
-                            "quiz", classId, "Exam", q.getId(), q.getTitle(), n));
+                            "exam", classId, "Class Exam", q.getId(), q.getTitle(), n));
                 }
             }
         }
@@ -107,7 +95,6 @@ public class TeacherStatsService {
                 me.getClassIds().size(),
                 courses.size(),
                 totalAssignments,
-                totalQuizzes,
                 top
         );
     }

@@ -36,6 +36,10 @@ public interface QuizRepository extends MongoRepository<Quiz, String> {
     @Query("{ 'classId': ?0, 'category': ?1, 'published': true }")
     List<Quiz> findPublishedByClassIdAndCategory(String classId, String category);
 
+    // ADDED: Fetch both published tests and exams for a class
+    @Query("{ 'classId': ?0, 'category': { $in: ['TEST', 'EXAM'] }, 'published': true }")
+    List<Quiz> findPublishedTestsAndExamsByClassId(String classId);
+
     @Query(value = "{ 'classId': ?0, 'category': ?1 }", count = true)
     long countByClassIdAndCategory(String classId, String category);
 
@@ -54,4 +58,8 @@ public interface QuizRepository extends MongoRepository<Quiz, String> {
 
     @Query("{ '_id': ?0 }")
     Optional<Quiz> findById(String id);
+
+    // --- deletes ---
+    @Query(value = "{ 'courseId': ?0 }", delete = true)
+    void deleteByCourseId(String courseId);
 }

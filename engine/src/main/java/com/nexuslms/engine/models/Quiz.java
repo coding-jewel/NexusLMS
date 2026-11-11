@@ -3,6 +3,8 @@ package com.nexuslms.engine.models;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -10,51 +12,41 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Document("quizzes")
+@CompoundIndex(name = "class_category_idx", def = "{'classId': 1, 'category': 1}")
 public class Quiz {
     @Id
     private String id;
 
     @NotBlank(message = "Tenant ID is required")
+    @Indexed
     private String tenantId;
 
     private QuizCategory category;
 
+    @Indexed
     private String courseId;
 
     private String classId;
 
     @NotBlank(message = "Teacher ID is required")
+    @Indexed
     private String teacherId;
 
     @NotBlank(message = "Title is required")
     private String title;
 
     private String description;
-
     private Integer timeLimitMinutes;
-
-    // The ceiling for this quiz. If a teacher forgets to set it (older documents),
-    // the sum of the question marks is used instead — see effectiveTotalMarks().
     private int totalMarks = 0;
-
     private List<Question> questions = new ArrayList<>();
-
     private List<String> attachmentUrls = new ArrayList<>();
-
     private boolean published = false;
-
     private boolean resultsReleased = false;
-
-    private String guardMode = "RECORD";
-    private int guardLimit = 3;
 
     @CreatedDate
     private LocalDateTime createdAt;
 
-    //Constructor
     public Quiz() {}
-
-    //Getters and Setters
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -86,7 +78,6 @@ public class Quiz {
     public int getTotalMarks() { return totalMarks; }
     public void setTotalMarks(int totalMarks) { this.totalMarks = Math.max(0, totalMarks); }
 
-    /** The denominator for this quiz. Falls back to the sum of question marks when unset. */
     public int effectiveTotalMarks() {
         if (totalMarks > 0) return totalMarks;
         return questions.stream().mapToInt(q -> q.getMarks() != null ? q.getMarks() : 1).sum();
@@ -105,12 +96,6 @@ public class Quiz {
 
     public boolean isResultsReleased() { return resultsReleased; }
     public void setResultsReleased(boolean resultsReleased) { this.resultsReleased = resultsReleased; }
-
-    public String getGuardMode() { return guardMode; }
-    public void setGuardMode(String guardMode) { this.guardMode = guardMode; }
-
-    public int getGuardLimit() { return guardLimit <= 0 ? 3 : guardLimit; }
-    public void setGuardLimit(int guardLimit) { this.guardLimit = guardLimit; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

@@ -1,6 +1,5 @@
 package com.nexuslms.engine.controller;
 
-import com.nexuslms.engine.dto.CoursePeopleResponse;
 import com.nexuslms.engine.dto.CourseRequest;
 import com.nexuslms.engine.dto.CourseResponse;
 import com.nexuslms.engine.security.AuthUser;
@@ -34,6 +33,15 @@ public class CourseController {
     public ResponseEntity<CourseResponse> create(@Valid @RequestBody CourseRequest request,
                                                  @AuthenticationPrincipal AuthUser auth) {
         return ResponseEntity.status(HttpStatus.CREATED).body(courseService.create(auth, request));
+    }
+
+    // NEW: Endpoint to update course details
+    @PreAuthorize("hasRole('TEACHER')")
+    @PutMapping("/{id}")
+    public CourseResponse updateCourse(@PathVariable String id,
+                                       @Valid @RequestBody CourseRequest request,
+                                       @AuthenticationPrincipal AuthUser auth) {
+        return courseService.updateCourse(auth, id, request);
     }
 
     @GetMapping
@@ -84,10 +92,5 @@ public class CourseController {
                                  @RequestParam("url") String url,
                                  @AuthenticationPrincipal AuthUser auth) {
         return courseService.detachFile(auth, id, url);
-    }
-
-    @GetMapping("/{id}/people")
-    public CoursePeopleResponse people(@PathVariable String id, @AuthenticationPrincipal AuthUser auth) {
-        return courseService.people(auth, id);
     }
 }

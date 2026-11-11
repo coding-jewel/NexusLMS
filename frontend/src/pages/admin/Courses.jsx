@@ -38,8 +38,10 @@ export default function Courses() {
   const clearFilters = () => { setClassFilter(''); setStatusFilter('') }
 
   return (
-    <AdminLayout title="Courses">
-      <div className="page-head"><p>Courses are notes and materials that teachers publish for a class.</p></div>
+    <AdminLayout title="Topics">
+      <div className="page-head">
+        <p>A topic organizes the notes, materials, assignments, and quizzes for one area of study within a class.</p>
+      </div>
       <section className="panel">
         {error ? (
           <div className="empty">
@@ -47,9 +49,9 @@ export default function Courses() {
             <button className="btn btn--ghost" onClick={load}>Try again</button>
           </div>
         ) : courses === null ? (
-          <p className="empty">Loading courses…</p>
+          <p className="empty">Loading topics…</p>
         ) : courses.length === 0 ? (
-          <p className="empty">No courses yet. They appear here once teachers create them.</p>
+          <p className="empty">No topics yet. They appear here once teachers create them.</p>
         ) : (
           <>
             <div className="filters">
@@ -64,16 +66,16 @@ export default function Courses() {
               </select>
               {filtering && <button className="btn btn--ghost btn--sm" onClick={clearFilters}>Clear filters</button>}
               <span className="filters__count">
-                {filtering ? `Showing ${visible.length} of ${courses.length}` : `${courses.length} ${courses.length === 1 ? 'course' : 'courses'}`}
+                {filtering ? `Showing ${visible.length} of ${courses.length}` : `${courses.length} ${courses.length === 1 ? 'topic' : 'topics'}`}
               </span>
             </div>
 
             {visible.length === 0 ? (
-              <p className="empty">No courses match these filters.</p>
+              <p className="empty">No topics match these filters.</p>
             ) : (
               <div className="table-wrap">
-                <table>
-                  <thead><tr><th>Course</th><th>Class</th><th>Teacher</th><th>Status</th></tr></thead>
+                <table className="table-topics">
+                  <thead><tr><th>Topic</th><th>Class</th><th>Teacher</th><th>Status</th></tr></thead>
                   <tbody>
                     {visible.map((c) => (
                       <tr key={c.id}>

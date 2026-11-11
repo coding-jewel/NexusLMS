@@ -2,13 +2,24 @@ package com.nexuslms.engine.dto;
 
 import java.util.List;
 
-// What a student sees on "My grades".
-// Assignments and topic quizzes live under their course.
-// Class tests and exams are grouped separately and only show a score if results were released.
 public record StudentGradesResponse(
+        List<ClassSummary> classes,
         List<CourseGrades> courses,
         List<ClassResult> testsAndExams
 ) {
+    public record ClassSummary(
+            String classId,
+            String className,
+            Double assignmentPct,
+            Double quizPct,
+            Double examPct,
+            Double overall,
+            String gradingMethod, // "RAW" or "WEIGHTED"
+            int assignmentWeight,
+            int quizWeight,
+            int examWeight
+    ) {}
+
     public record CourseGrades(
             String courseId,
             String courseName,
@@ -29,7 +40,7 @@ public record StudentGradesResponse(
             String quizId,
             String title,
             String className,
-            String category,        // "TEST" | "EXAM"
+            String category,        // "EXAM"
             boolean released,
             Integer score,          // null until released
             Integer totalMarks

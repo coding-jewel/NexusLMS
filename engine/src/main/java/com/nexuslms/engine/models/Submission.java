@@ -3,6 +3,8 @@ package com.nexuslms.engine.models;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -10,39 +12,33 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Document("submissions")
+@CompoundIndex(name = "assignment_student_unique", def = "{'assignmentId': 1, 'studentId': 1}", unique = true)
 public class Submission {
     @Id
     private String id;
 
     @NotBlank(message = "Tenant ID is required")
+    @Indexed
     private String tenantId;
 
     @NotBlank(message = "Assignment ID is required")
     private String assignmentId;
 
     @NotBlank(message = "Student ID is required")
+    @Indexed
     private String studentId;
 
     private String text;
-
     private List<String> fileUrls = new ArrayList<>();
-
     private Integer grade;
-
     private String feedback;
-
     private boolean graded = false;
-
-    // Set at submit time by comparing to the assignment's due date.
     private boolean late = false;
 
     @CreatedDate
     private LocalDateTime submittedAt;
 
-    //Constructor
     public Submission() {}
-
-    //Getters and Setters
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -60,9 +56,7 @@ public class Submission {
     public void setText(String text) { this.text = text; }
 
     public List<String> getFileUrls() { return fileUrls; }
-    public void setFileUrls(List<String> fileUrls) {
-        this.fileUrls = fileUrls == null ? new ArrayList<>() : fileUrls;
-    }
+    public void setFileUrls(List<String> fileUrls) { this.fileUrls = fileUrls == null ? new ArrayList<>() : fileUrls; }
 
     public Integer getGrade() { return grade; }
     public void setGrade(Integer grade) { this.grade = grade; }

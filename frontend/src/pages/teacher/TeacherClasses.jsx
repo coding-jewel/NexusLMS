@@ -6,8 +6,15 @@ import { listClasses } from '../../api/classes'
 import { useAuth } from '../../auth/AuthContext'
 import '../../styles/teacher.css'
 
-// Groups the teacher's courses under the classes they teach. A class the teacher is assigned
-// to but has no courses in still appears, with a prompt to create one.
+// The palette: Bright Purple, Teal, Dark Navy, Red, Brown
+const CARD_COLORS = [
+  '#4000ff', 
+  '#0f766e', 
+  '#1e1b4b', 
+  '#dc2626', 
+  '#92400e', 
+]
+
 export default function TeacherClasses() {
   const { user } = useAuth()
   const [data, setData] = useState(null) // { courses, classes }
@@ -25,7 +32,6 @@ export default function TeacherClasses() {
   const groups = useMemo(() => {
     if (!data) return []
     const mine = new Set(user?.classIds ?? [])
-    // Show any class I'm assigned to, plus any class I have a course in (in case I was removed later).
     const relevant = data.classes.filter(
       (c) => mine.has(c.id) || data.courses.some((co) => co.classId === c.id)
     )
@@ -40,7 +46,7 @@ export default function TeacherClasses() {
   return (
     <AppLayout role="teacher" title="My Classes">
       <div className="page-head">
-        <p>Each class you teach, with the topics you've created in it.</p>
+        <p>Select a class to view its topics, gradebook, and people.</p>
       </div>
 
       {error ? (
@@ -57,32 +63,23 @@ export default function TeacherClasses() {
           <p className="empty">You aren't assigned to any class yet. Ask your admin to add you.</p>
         </section>
       ) : (
-        groups.map((g) => (
-          <section key={g.id} className="panel">
-            <div className="panel__head">
-              <h2>{g.name}</h2>
-              <span className="muted-text">{g.studentCount ?? 0} {g.studentCount === 1 ? 'student' : 'students'}</span>
-            </div>
-            {g.courses.length === 0 ? (
-              <p className="empty">No courses yet. <Link to="/teacher/courses">Create one</Link>.</p>
-            ) : (
-              <ul className="rows">
-                {g.courses.map((c) => (
-                  <li key={c.id}>
-                    <div>
-                      <strong>{c.title}</strong>
-                      <small>{c.assignmentCount} {c.assignmentCount === 1 ? 'assignment' : 'assignments'} · {c.quizCount} {c.quizCount === 1 ? 'test' : 'tests'}</small>
-                    </div>
-                    <div className="rows__end">
-                      <span className={`badge ${c.published ? 'badge--live' : ''}`}>{c.published ? 'Published' : 'Draft'}</span>
-                      <Link to={`/teacher/courses/${c.id}`} className="btn btn--ghost btn--sm">Open</Link>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ))
+        <div className="class-grid">
+          {/* FIXED: Added `i` to the map function and used the modulo operator */}
+          {groups.map((g, i) => (
+            <Link key={g.id} to={`/teacher/classes/${g.id}`} className="class-card">
+              <div 
+                className="class-card__top" 
+                style={{ backgroundColor: CARD_COLORS[i % CARD_COLORS.length] }}
+              >
+                <h2>{g.name}</h2>
+              </div>
+              <div className="class-card__body">
+                <span>{g.studentCount ?? 0} {g.studentCount === 1 ? 'student' : 'students'}</span>
+                <span>{g.courses.length} {g.courses.length === 1 ? 'topic' : 'topics'}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
       )}
     </AppLayout>
   )

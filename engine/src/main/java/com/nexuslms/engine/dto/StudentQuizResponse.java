@@ -13,8 +13,6 @@ public record StudentQuizResponse(
         Integer timeLimitMinutes,
         int totalMarks,
         String category,
-        String guardMode,
-        int guardLimit,
         boolean resultsReleased,
         List<StudentQuestion> questions
 ) {
@@ -26,8 +24,6 @@ public record StudentQuizResponse(
                 q.getTimeLimitMinutes(),
                 q.effectiveTotalMarks(),
                 q.getCategory() == null ? null : q.getCategory().name(),
-                q.getGuardMode(),
-                q.getGuardLimit(),
                 q.isResultsReleased(),
                 q.getQuestions().stream().map(StudentQuestion::from).toList()
         );
