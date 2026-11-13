@@ -178,7 +178,6 @@ export default function Register() {
               placeholder={PASSWORD_HINT}
               autoComplete="new-password"
               minLength={8}
-              // FIXED: Show error message if typing and invalid
               error={password.length > 0 && !strongPw ? PASSWORD_HINT : ''}
             />
             <PasswordField

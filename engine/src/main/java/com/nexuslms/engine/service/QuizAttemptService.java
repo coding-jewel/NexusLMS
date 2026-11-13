@@ -10,7 +10,8 @@ import com.nexuslms.engine.security.AuthUser;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -48,15 +49,18 @@ public class QuizAttemptService {
             if (attempt.isSubmitted() || attempt.isGraded()) {
                 throw new DuplicateResourceException("You have already attempted this quiz");
             }
-            if (attempt.getExpiresAt() != null && attempt.getExpiresAt().isBefore(LocalDateTime.now())) {
-                autoSubmit(attempt, quiz);
+            // If they come back after time ran out, auto submit them
+            if (attempt.getExpiresAt() != null && attempt.getExpiresAt().isBefore(Instant.now())) {
+                finalizeAttempt(attempt, quiz);
                 throw new DuplicateResourceException("The time for this quiz has run out. Your attempt was submitted automatically.");
             }
+            // If they have time left, return the existing attempt (timer keeps counting down)
             return attempt;
         }
 
+        // TIMER STARTS HERE: Only when they click "Start" for the first time
         int limit = quiz.getTimeLimitMinutes() != null ? quiz.getTimeLimitMinutes() : 30;
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
 
         QuizAttempt attempt = new QuizAttempt();
         attempt.setTenantId(auth.tenantId());
@@ -64,7 +68,7 @@ public class QuizAttemptService {
         attempt.setStudentId(auth.userId());
         attempt.setAnswers(new java.util.HashMap<>());
         attempt.setStartedAt(now);
-        attempt.setExpiresAt(now.plusMinutes(limit));
+        attempt.setExpiresAt(now.plus(limit, ChronoUnit.MINUTES));
         attempt.setSubmitted(false);
         return quizAttemptRepository.save(attempt);
     }
@@ -86,36 +90,39 @@ public class QuizAttemptService {
         return finalizeAttempt(attempt, quiz);
     }
 
-    // NEW: Method to handle abandoned attempts
+    // Closing the tab fully grades the exam
     public void abandonAttempt(AuthUser auth, String attemptId) {
         quizAttemptRepository.findById(attemptId)
                 .filter(a -> auth.tenantId().equals(a.getTenantId()))
                 .filter(a -> auth.userId().equals(a.getStudentId()))
                 .ifPresent(attempt -> {
                     if (!attempt.isSubmitted()) {
-                        attempt.setSubmitted(true);
-                        attempt.setSubmittedAt(LocalDateTime.now());
-                        quizAttemptRepository.save(attempt);
+                        Quiz quiz = quizRepository.findById(attempt.getQuizId()).orElse(null);
+                        if (quiz != null) {
+                            // This will calculate the MCQ score, mark it graded, and sync to the Gradebook
+                            finalizeAttempt(attempt, quiz); 
+                        } else {
+                            // Fallback: If the quiz was deleted, just close the attempt
+                            attempt.setSubmitted(true);
+                            attempt.setSubmittedAt(Instant.now());
+                            quizAttemptRepository.save(attempt);
+                        }
                     }
                 });
     }
 
     @Scheduled(fixedRate = 30000)
     public void autoSubmitExpiredAttempts() {
-        List<QuizAttempt> expired = quizAttemptRepository.findExpiredUnsubmitted(LocalDateTime.now());
+        List<QuizAttempt> expired = quizAttemptRepository.findExpiredUnsubmitted(Instant.now());
         for (QuizAttempt attempt : expired) {
             try {
                 Quiz quiz = quizRepository.findById(attempt.getQuizId()).orElse(null);
                 if (quiz != null) {
-                    autoSubmit(attempt, quiz);
+                    finalizeAttempt(attempt, quiz);
                 }
             } catch (Exception ignored) {
             }
         }
-    }
-
-    private void autoSubmit(QuizAttempt attempt, Quiz quiz) {
-        finalizeAttempt(attempt, quiz);
     }
 
     private QuizAttempt finalizeAttempt(QuizAttempt attempt, Quiz quiz) {
@@ -139,7 +146,7 @@ public class QuizAttemptService {
         attempt.setScore(totalScore);
         attempt.setGraded(!hasOpenEnded);
         attempt.setSubmitted(true);
-        attempt.setSubmittedAt(LocalDateTime.now());
+        attempt.setSubmittedAt(Instant.now());
         QuizAttempt saved = quizAttemptRepository.save(attempt);
 
         if (saved.isGraded()) {
@@ -217,7 +224,7 @@ public class QuizAttemptService {
 
         if (!attempt.isSubmitted()) {
             attempt.setSubmitted(true);
-            attempt.setSubmittedAt(LocalDateTime.now());
+            attempt.setSubmittedAt(Instant.now());
         }
 
         QuizAttempt saved = quizAttemptRepository.save(attempt);

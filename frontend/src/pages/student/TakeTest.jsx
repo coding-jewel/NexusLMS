@@ -8,6 +8,19 @@ import '../../styles/student.css'
 
 const fmtTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
+const parseExpiry = (expiresAt) => {
+  if (!expiresAt) return Date.now() + 30 * 60 * 1000
+  
+  let str = String(expiresAt)
+  
+  if (!str.endsWith('Z') && !str.includes('+') && !str.match(/-\d{2}:\d{2}$/)) {
+    str = str + 'Z'
+  }
+  
+  const parsed = new Date(str).getTime()
+  return isNaN(parsed) ? Date.now() + 30 * 60 * 1000 : parsed
+}
+
 export default function TakeTest() {
   const { qid } = useParams()
   const [quiz, setQuiz] = useState(null)
@@ -44,7 +57,7 @@ export default function TakeTest() {
           setStage('done')
           setAnswers(at.answers || {})
         } else if (at && at.expiresAt) {
-          setEndTime(new Date(at.expiresAt).getTime())
+          setEndTime(parseExpiry(at.expiresAt)) // FIXED
           setAnswers(at.answers || {})
           setStage('taking')
         }
@@ -68,7 +81,6 @@ export default function TakeTest() {
     return () => clearInterval(t)
   }, [stage, endTime])
 
-  // FIXED: Fire the abandon endpoint when the user closes the tab
   useEffect(() => {
     if (stage !== 'taking' || !attempt) return
 
@@ -87,8 +99,11 @@ export default function TakeTest() {
     try {
       const at = await startQuizAttempt(qid)
       setAttempt(at)
-      setEndTime(new Date(at.expiresAt).getTime())
-      setRemaining(Math.max(0, Math.ceil((new Date(at.expiresAt).getTime() - Date.now()) / 1000)))
+      
+      const expiryTime = parseExpiry(at.expiresAt) // FIXED
+      
+      setEndTime(expiryTime)
+      setRemaining(Math.max(0, Math.ceil((expiryTime - Date.now()) / 1000)))
       setStage('taking')
     } catch (err) {
       setLoadError(err.message)
@@ -152,7 +167,7 @@ export default function TakeTest() {
           <div className="test-top__title"><strong>{quiz.title}</strong></div>
         </header>
         <main className="test-main">
-          <section className="panel test-card" style={{ marginBottom: '2rem' }}>
+          <section className="panel test-card review-success-card">
             <h1>You’ve already submitted this quiz</h1>
             <p className="muted-text">Each quiz can only be attempted once.</p>
             {reason && <p className="flag-note">{reason}</p>}
@@ -167,37 +182,39 @@ export default function TakeTest() {
               <p className="hint">Your teacher still has to mark the written answers.</p>
             )}
 
-            <Link to="/student/grades" className="btn btn--primary" style={{ marginTop: '1rem' }}>Go to My grades</Link>
+            <Link to="/student/grades" className="btn btn--primary mt-1">Go to My grades</Link>
           </section>
 
-          <section className="panel">
-            <h2 style={{ marginBottom: '1.5rem' }}>Review your answers</h2>
-            {quiz.questions.map((q, idx) => {
-              const studentAns = answers[String(idx)]
-              const isCorrect = q.type === 'MULTIPLE_CHOICE' && studentAns === q.correctAnswer
-              
-              return (
-                <div key={idx} style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--slate-200)' }}>
-                  <p className="muted-text" style={{ marginBottom: '0.2rem', fontSize: '0.85rem' }}>
-                    Question {idx + 1} · {q.marks ?? 1} marks
-                  </p>
-                  <h3 className="q-text" style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>{q.text}</h3>
-                  
-                  <div style={{ padding: '1rem', background: 'var(--slate-50)', borderRadius: '8px' }}>
-                    <p style={{ margin: 0, fontWeight: 600 }}>Your answer:</p>
-                    <p style={{ margin: '0.5rem 0 0 0', color: studentAns ? (q.type === 'MULTIPLE_CHOICE' ? (isCorrect ? 'var(--teal-700)' : 'var(--danger)') : 'inherit') : 'var(--slate-400)' }}>
-                      {studentAns || 'No answer provided'}
+          {isReleased && (
+            <section className="panel">
+              <h2 className="review-heading">Review your answers</h2>
+              {quiz.questions.map((q, idx) => {
+                const studentAns = answers[String(idx)]
+                const isCorrect = q.type === 'MULTIPLE_CHOICE' && studentAns === q.correctAnswer
+                
+                return (
+                  <div key={idx} className="review-item">
+                    <p className="review-question-meta">
+                      Question {idx + 1} · {q.marks ?? 1} marks
                     </p>
-                    {q.type === 'MULTIPLE_CHOICE' && isReleased && (
-                      <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: 'var(--slate-500)' }}>
-                        Correct answer: {q.correctAnswer}
+                    <h3 className="review-question-text">{q.text}</h3>
+                    
+                    <div className="review-answer-box">
+                      <p className="review-answer-label">Your answer:</p>
+                      <p className={`review-answer-text ${studentAns ? (q.type === 'MULTIPLE_CHOICE' ? (isCorrect ? 'review-answer-text--right' : 'review-answer-text--wrong') : '') : 'review-answer-text--empty'}`}>
+                        {studentAns || 'No answer provided'}
                       </p>
-                    )}
+                      {q.type === 'MULTIPLE_CHOICE' && (
+                        <p className="review-correct-answer">
+                          Correct answer: {q.correctAnswer}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </section>
+                )
+              })}
+            </section>
+          )}
         </main>
       </div>
     )

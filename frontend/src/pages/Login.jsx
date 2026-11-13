@@ -58,7 +58,7 @@ export default function Login() {
       <aside className="auth__side">
         <Logo light />
         <div>
-          <p className="auth__school">{subdomain}.nexuslms.com</p>
+          <p className="auth__school">{window.location.host}</p>
           <h1>Welcome to {tenant.name}.</h1>
         </div>
       </aside>

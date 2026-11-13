@@ -42,7 +42,20 @@ export default function AppLayout({ role, title, children }) {
   const { tenant, subdomain } = useTenant()
   const navigate = useNavigate()
   const location = useLocation()
+  
   const [menuOpen, setMenuOpen] = useState(false)
+  
+  // FIXED: Initialize state from localStorage so it persists across page navigations
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem('sidebarCollapsed') === 'true'
+  })
+
+  // FIXED: Toggle function that also saves to localStorage
+  const toggleSidebar = () => {
+    const newState = !isCollapsed
+    setIsCollapsed(newState)
+    localStorage.setItem('sidebarCollapsed', String(newState))
+  }
 
   const name = user?.name || LABELS[role]
   const initials = name.replace(/^(Mr|Mrs|Ms)\.\s/, '').split(' ').map((n) => n[0]).join('').slice(0, 2)
@@ -52,10 +65,15 @@ export default function AppLayout({ role, title, children }) {
     <div className="shell">
       {menuOpen && <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} />}
 
-      <aside className={`sidebar ${menuOpen ? 'is-open' : ''}`}>
+      <aside className={`sidebar ${menuOpen ? 'is-open' : ''} ${isCollapsed ? 'is-collapsed' : ''}`}>
         <div className="sidebar__brand">
           <Logo />
           <button className="sidebar__close" onClick={() => setMenuOpen(false)}>&times;</button>
+          <button className="sidebar__toggle" onClick={toggleSidebar}>
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            </svg>
+          </button>
         </div>
         
         <nav aria-label={LABELS[role]}>
@@ -64,6 +82,7 @@ export default function AppLayout({ role, title, children }) {
               key={to} 
               to={to} 
               end={i === 0} 
+              title={label} 
               className={({ isActive }) => {
                 let active = isActive
                 
@@ -72,7 +91,6 @@ export default function AppLayout({ role, title, children }) {
                 }
 
                 if (role === 'teacher' && to === '/teacher/classes') {
-                  // Keep "My Classes" active for Topics, Exams, and Marking
                   if (location.pathname.startsWith('/teacher/courses') || location.pathname.startsWith('/teacher/quizzes')) {
                     active = true
                   }
@@ -89,18 +107,18 @@ export default function AppLayout({ role, title, children }) {
               onClick={() => setMenuOpen(false)}
             >
               {Icons[label]}
-              {label}
+              <span>{label}</span>
             </NavLink>
           ))}
         </nav>
         
         <div className="sidebar__school">
           <strong>{tenant?.name}</strong>
-          <span>{subdomain}.nexuslms.com</span>
+          <span>{window.location.host}</span>
         </div>
       </aside>
 
-      <div className="shell__main">
+      <div className={`shell__main ${isCollapsed ? 'is-collapsed' : ''}`}>
         <header className="topbar">
           <div className="topbar__title">
             <button className="menu-toggle" onClick={() => setMenuOpen(true)} aria-label="Open menu">

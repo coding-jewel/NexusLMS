@@ -6,7 +6,11 @@ import '../../styles/student.css'
 
 // Using the same color palette as the teacher side
 const CARD_COLORS = [
-  '#dc2626', '#2563eb', '#7c3aed', '#16a34a', '#92400e', '#ea580c',
+  '#4000ff', 
+  '#0f766e', 
+  '#1e1b4b', 
+  '#dc2626', 
+  '#92400e',
 ]
 
 const getCardColor = (name) => {
@@ -47,7 +51,7 @@ export default function StudentClasses() {
       ) : classes.length === 0 ? (
         <section className="panel">
           <p className="empty">
-            You aren’t enrolled in any classes yet. Ask your teacher for a class code, then join from your Overview page.
+            You aren’t enrolled in any classes yet. Ask your school for a class code, then join from your Overview page.
           </p>
         </section>
       ) : (

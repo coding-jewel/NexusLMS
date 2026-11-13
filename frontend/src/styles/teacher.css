@@ -16,6 +16,10 @@
 .badge--exam { background: #fce7f3; color: #9d174d; }
 .badge--closed { background: var(--slate-200); color: var(--slate-700); }
 
+/* Utility Classes */
+.mt-sm { margin-top: 0.2rem; }
+.mb-2 { margin-bottom: 1rem; }
+
 .select { font: 400 1rem var(--font-body); padding: .7rem .85rem; border: 1px solid var(--slate-200); border-radius: var(--radius-md); background: #fff; color: var(--slate-900); width: 100%; }
 .back { color: var(--indigo-600); font-weight: 600; font-size: .92rem; width: fit-content; text-decoration: none; }
 .back:hover { text-decoration: underline; }
@@ -305,17 +309,17 @@
     padding: 0.8rem; 
   }
 
-  /* FIXED: Force the background to be transparent so the weird white box goes away */
+
   table.gb td:first-child {
     background-color: transparent !important;
   }
 
-  /* FIXED: Specific labels for Gradebook columns on mobile */
+  
   table.gb td:nth-child(2)::before { content: "Assignments"; }
   table.gb td:nth-child(3)::before { content: "Quizzes"; }
   table.gb td:nth-child(4)::before { content: "Exams"; }
   
-  /* FIXED: Force the Overall column to show its label and align properly */
+
   table.gb td:last-child { 
     display: flex !important; 
     justify-content: space-between !important; 
@@ -331,14 +335,14 @@
     padding-right: 1rem;
   }
 
-  /* FIXED: Specific labels for the exams table */
+  
   table.table-exams td:nth-child(2)::before { content: "Type"; }
   table.table-exams td:nth-child(3)::before { content: "Questions"; }
   table.table-exams td:nth-child(4)::before { content: "Time"; }
   table.table-exams td:nth-child(5)::before { content: "Status"; }
   table.table-exams td:nth-child(6)::before { content: "Results"; }
 
-  /* FIXED: Stack the results button and text nicely */
+ 
   .exam-results-cell { 
     align-items: flex-end; 
     text-align: right; 

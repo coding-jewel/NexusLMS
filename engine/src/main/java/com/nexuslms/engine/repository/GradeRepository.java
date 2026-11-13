@@ -40,4 +40,12 @@ public interface GradeRepository extends MongoRepository<Grade, String> {
 
     @Query(value = "{ 'courseId': ?0 }", delete = true)
     void deleteByCourseId(String courseId);
+
+    // NEW: Delete a specific student's grades for a list of assignments
+    @Query(value = "{ 'studentId': ?0, 'assignmentId': { $in: ?1 } }", delete = true)
+    void deleteByStudentIdAndAssignmentIdIn(String studentId, List<String> assignmentIds);
+
+    // NEW: Delete a specific student's grades for a list of quizzes/exams
+    @Query(value = "{ 'studentId': ?0, 'quizId': { $in: ?1 } }", delete = true)
+    void deleteByStudentIdAndQuizIdIn(String studentId, List<String> quizIds);
 }

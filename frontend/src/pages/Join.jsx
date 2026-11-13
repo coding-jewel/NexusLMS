@@ -8,9 +8,6 @@ import { startJoin, verifyJoin, resendJoinCode } from '../api/join'
 import { homeFor } from '../utils/roles'
 import '../styles/auth.css'
 
-// Reached from an invite link like /join?code=GLD-4K7Q or /join?code=STAFF-ABC123.
-// Step 1: fill in the form and get a code by email.
-// Step 2: enter the code. Students are signed in straight away; teachers wait for admin approval.
 export default function Join() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -32,7 +29,14 @@ export default function Join() {
   const [cooldown, setCooldown] = useState(0)
   const [waitingSubdomain, setWaitingSubdomain] = useState(subdomain)
 
-  const address = subdomain ? `${subdomain}.nexuslms.com` : 'NexusLMS'
+  
+  const isLocalhost = window.location.hostname.endsWith('localhost');
+  const port = window.location.port ? `:${window.location.port}` : '';
+  const baseDomain = isLocalhost 
+    ? `localhost${port}` 
+    : (import.meta.env.VITE_ROOT_DOMAIN || 'nexuslms.com');
+
+  const address = subdomain ? `${subdomain}.${baseDomain}` : 'NexusLMS'
   const heading = tenant ? `Join ${tenant.name}.` : 'Join your school.'
 
   useEffect(() => {
@@ -81,11 +85,9 @@ export default function Join() {
     try {
       const data = await verifyJoin({ email: form.email.trim(), code: otp })
       if (data.token) {
-        // Student: the account is ready and the server signed them in.
         setSession({ token: data.token, user: data.user })
         navigate(homeFor(data.user.role))
       } else {
-        // Teacher: the account is pending approval, so log them out and show the waiting screen.
         logout()
         setWaitingSubdomain(data.subdomain)
         setStep('waiting')
@@ -117,7 +119,7 @@ export default function Join() {
           <p className="auth__school">{address}</p>
           <h1>{heading}</h1>
         </div>
-        <p>Your teacher or school admin shared the code with you.</p>
+        <p>Your school admin shared the code with you.</p>
       </aside>
 
       <main className="auth__main">
@@ -131,7 +133,7 @@ export default function Join() {
               <input
                 value={form.code}
                 onChange={changeCode}
-                placeholder="STAFF-ABC123 or JSS-4K7Q"
+                placeholder="STAFF-ABC123 or PYT-4K7Q"
                 autoCapitalize="characters"
                 autoComplete="off"
                 required
@@ -141,7 +143,7 @@ export default function Join() {
 
             <label className="field">
               <span>Your name</span>
-              <input value={form.name} onChange={change('name')} placeholder="Ngozi Eze" autoComplete="name" required />
+              <input value={form.name} onChange={change('name')} placeholder="Your Name" autoComplete="name" required />
             </label>
 
             <label className="field">
@@ -170,7 +172,6 @@ export default function Join() {
           <form className="auth__card" onSubmit={handleVerify}>
             <h2>Check your email</h2>
             <p className="auth__sub">We sent a 6-digit code to <strong>{form.email}</strong>. It expires in 15 minutes.</p>
-            
 
             <label className="field">
               <span>Verification code</span>
@@ -205,7 +206,7 @@ export default function Join() {
           <div className="auth__card">
             <h2>Your request is in.</h2>
             <p className="auth__sub">Your school admin needs to approve your account before you can sign in.</p>
-            <p>Once they do, sign in at <strong>{waitingSubdomain}.nexuslms.com</strong> with the email and password you just chose.</p>
+            <p>Once they do, sign in at <strong>{waitingSubdomain}.{baseDomain}</strong> with the email and password you just chose.</p>
             <Link to="/login" className="btn btn--ghost btn--block">Back to sign in</Link>
           </div>
         )}

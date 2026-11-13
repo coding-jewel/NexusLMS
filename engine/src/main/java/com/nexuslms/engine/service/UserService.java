@@ -119,6 +119,11 @@ public class UserService {
             throw new InvalidRequestException("Your current password is incorrect.");
         }
 
+        // FIXED: Ensure the new password is not the same as the old one
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
+            throw new InvalidRequestException("Your new password cannot be the same as your current password.");
+        }
+
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
     }

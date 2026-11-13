@@ -20,14 +20,18 @@ public class CloudinaryService {
         String original = file.getOriginalFilename();
         String name = (original == null || original.isBlank()) ? "file" : original;
 
-        // Cloudinary re-appends the extension for images and videos based on the actual
-        // format, so we strip it there. For raw files (pdf, py, zip, docx…) it does not,
-        // so we keep the original name including the extension.
         String contentType = file.getContentType();
+        
+        // FIXED: Treat PDFs as media so Cloudinary handles the extension correctly
         boolean isMedia = contentType != null
-                && (contentType.startsWith("image/") || contentType.startsWith("video/"));
+                && (contentType.startsWith("image/") || 
+                    contentType.startsWith("video/") || 
+                    contentType.equals("application/pdf"));
 
+        // Strip the extension for media/PDFs, keep it for true raw files (like .zip, .py)
         String publicId = isMedia ? name.replaceAll("\\.[^.]+$", "") : name;
+        
+        // Sanitize the name
         publicId = publicId.replaceAll("[^a-zA-Z0-9._-]", "_");
 
         Map<?, ?> uploadResult = cloudinary.uploader().upload(
@@ -36,8 +40,6 @@ public class CloudinaryService {
                         "folder", "nexuslms/" + folder,
                         "resource_type", "auto",
                         "public_id", publicId,
-                        // If a file with the same name is uploaded twice, append _1, _2…
-                        // instead of overwriting the earlier one.
                         "unique_filename", true
                 )
         );

@@ -232,3 +232,67 @@
     text-align: right !important;
   }
 }
+
+/* =========================================
+   EXAM REVIEW SECTION
+   ========================================= */
+.review-success-card {
+  margin-bottom: 2rem;
+}
+
+.mt-1 {
+  margin-top: 1rem;
+}
+
+.review-heading {
+  margin-bottom: 1.5rem;
+}
+
+.review-item {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--slate-200);
+}
+
+.review-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.review-question-meta {
+  margin-bottom: 0.2rem;
+  font-size: 0.85rem;
+  color: var(--slate-500);
+}
+
+.review-question-text {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.review-answer-box {
+  padding: 1rem;
+  background: var(--slate-50);
+  border-radius: var(--radius-md);
+}
+
+.review-answer-label {
+  margin: 0;
+  font-weight: 600;
+}
+
+.review-answer-text {
+  margin: 0.5rem 0 0 0;
+}
+
+.review-answer-text--right { color: var(--teal-700); }
+.review-answer-text--wrong { color: var(--danger); }
+.review-answer-text--empty { color: var(--slate-400); }
+
+.review-correct-answer {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.9rem;
+  color: var(--slate-500);
+}

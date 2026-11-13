@@ -5,7 +5,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,19 +30,19 @@ public interface QuizAttemptRepository extends MongoRepository<QuizAttempt, Stri
     @Query(value = "{ 'quizId': ?0 }", count = true)
     long countByQuizId(String quizId);
 
-    // FIXED: Added 'submitted': true so teachers don't see in-progress attempts
     @Query("{ 'quizId': ?0, 'graded': false, 'submitted': true }")
     List<QuizAttempt> findAllUngradedByQuizId(String quizId);
 
-    // FIXED: Added 'submitted': true for the badge count
     @Query(value = "{ 'quizId': ?0, 'graded': false, 'submitted': true }", count = true)
     long countByQuizIdAndGradedFalse(String quizId);
 
-    // ADDED: Finds all attempts that have not been submitted but whose time is up.
+    // FIXED: Changed LocalDateTime to Instant
     @Query("{ 'submitted': false, 'expiresAt': { $lt: ?0 } }")
-    List<QuizAttempt> findExpiredUnsubmitted(LocalDateTime now);
+    List<QuizAttempt> findExpiredUnsubmitted(Instant now);
 
-    // Delete all attempts for a list of quizzes (used in cascading deletes)
     @Query(value = "{ 'quizId': { $in: ?0 } }", delete = true)
     void deleteByQuizIdIn(List<String> quizIds);
+
+    @Query(value = "{ 'studentId': ?0, 'quizId': { $in: ?1 } }", delete = true)
+    void deleteByStudentIdAndQuizIdIn(String studentId, List<String> quizIds);
 }

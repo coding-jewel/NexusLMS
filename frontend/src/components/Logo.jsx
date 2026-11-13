@@ -3,7 +3,12 @@ import '../styles/Logo.css'
 
 export default function Logo({ light = false }) {
   return (
-    <Link to="/" className={`logo ${light ? 'logo--light' : ''}`} aria-label="NexusLMS home">
+    <Link 
+      to="#" 
+      onClick={(e) => e.preventDefault()} // <-- Prevents navigation
+      className={`logo ${light ? 'logo--light' : ''}`} 
+      aria-label="NexusLMS"
+    >
       <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
         <line x1="14" y1="14" x2="5" y2="6" stroke="currentColor" strokeWidth="2" />
         <line x1="14" y1="14" x2="23" y2="7" stroke="currentColor" strokeWidth="2" />

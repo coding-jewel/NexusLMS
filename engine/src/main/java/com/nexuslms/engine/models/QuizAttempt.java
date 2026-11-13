@@ -9,7 +9,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Map;
 
 @Document("quiz_attempts")
@@ -37,13 +37,15 @@ public class QuizAttempt {
 
     private Integer score;
     private boolean graded = false;
-    private LocalDateTime startedAt;
-    private LocalDateTime expiresAt;
+    
+    // FIXED: Changed to Instant to prevent timezone bugs
+    private Instant startedAt;
+    private Instant expiresAt;
     private boolean submitted = false;
-    private LocalDateTime submittedAt;
+    private Instant submittedAt;
 
     @CreatedDate
-    private LocalDateTime attemptedAt;
+    private Instant attemptedAt;
 
     public QuizAttempt() {}
 
@@ -68,18 +70,18 @@ public class QuizAttempt {
     public boolean isGraded() { return graded; }
     public void setGraded(boolean graded) { this.graded = graded; }
 
-    public LocalDateTime getStartedAt() { return startedAt; }
-    public void setStartedAt(LocalDateTime startedAt) { this.startedAt = startedAt; }
+    public Instant getStartedAt() { return startedAt; }
+    public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
 
-    public LocalDateTime getExpiresAt() { return expiresAt; }
-    public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
+    public Instant getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
 
     public boolean isSubmitted() { return submitted; }
     public void setSubmitted(boolean submitted) { this.submitted = submitted; }
 
-    public LocalDateTime getSubmittedAt() { return submittedAt; }
-    public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
+    public Instant getSubmittedAt() { return submittedAt; }
+    public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }
 
-    public LocalDateTime getAttemptedAt() { return attemptedAt; }
-    public void setAttemptedAt(LocalDateTime attemptedAt) { this.attemptedAt = attemptedAt; }
+    public Instant getAttemptedAt() { return attemptedAt; }
+    public void setAttemptedAt(Instant attemptedAt) { this.attemptedAt = attemptedAt; }
 }

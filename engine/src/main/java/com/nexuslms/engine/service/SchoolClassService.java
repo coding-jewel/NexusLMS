@@ -13,6 +13,7 @@ import com.nexuslms.engine.repository.*;
 import com.nexuslms.engine.security.AuthUser;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -29,16 +30,23 @@ public class SchoolClassService {
     private final AssignmentRepository assignmentRepository;
     private final QuizRepository quizRepository;
     private final GradeRepository gradeRepository;
+    
+    // NEW: Added for cascade deletion
+    private final SubmissionRepository submissionRepository;
+    private final QuizAttemptRepository quizAttemptRepository;
 
     public SchoolClassService(SchoolClassRepository classRepository, UserRepository userRepository,
                               CourseRepository courseRepository, AssignmentRepository assignmentRepository,
-                              QuizRepository quizRepository, GradeRepository gradeRepository) {
+                              QuizRepository quizRepository, GradeRepository gradeRepository,
+                              SubmissionRepository submissionRepository, QuizAttemptRepository quizAttemptRepository) {
         this.classRepository = classRepository;
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
         this.assignmentRepository = assignmentRepository;
         this.quizRepository = quizRepository;
         this.gradeRepository = gradeRepository;
+        this.submissionRepository = submissionRepository;
+        this.quizAttemptRepository = quizAttemptRepository;
     }
 
     public ClassResponse create(String tenantId, ClassRequest request) {
@@ -53,7 +61,6 @@ public class SchoolClassService {
         return toResponse(tenantId, saveWithNewCode(schoolClass));
     }
 
-    // NEW: Update method for editing class name/description
     public ClassResponse update(String tenantId, String id, ClassRequest request) {
         SchoolClass schoolClass = owned(tenantId, id);
 
@@ -246,6 +253,8 @@ public class SchoolClassService {
                 .toList();
     }
 
+    // FIXED: Added @Transactional and the cascade delete call
+    @Transactional
     public void removeStudent(String tenantId, String classId, String studentId) {
         owned(tenantId, classId);
         User student = userRepository.findById(studentId)
@@ -257,6 +266,34 @@ public class SchoolClassService {
         if (classIds.remove(classId)) {
             student.setClassIds(classIds);
             userRepository.save(student);
+
+            // NEW: Cascade delete their submissions, attempts, and grades
+            cascadeDeleteStudentData(classId, studentId);
+        }
+    }
+
+    // NEW: Helper method to cleanly delete all related data
+    private void cascadeDeleteStudentData(String classId, String studentId) {
+        List<Course> courses = courseRepository.findAllByClassId(classId);
+        List<String> assignmentIds = new ArrayList<>();
+        List<String> quizIds = new ArrayList<>();
+
+        for (Course course : courses) {
+            assignmentRepository.findAllByCourseId(course.getId()).forEach(a -> assignmentIds.add(a.getId()));
+            quizRepository.findAllQuizzesByCourseId(course.getId()).forEach(q -> quizIds.add(q.getId()));
+        }
+        
+        // Add class-level Exams
+        quizRepository.findAllByClassIdAndCategory(classId, "EXAM").forEach(q -> quizIds.add(q.getId()));
+
+        if (!assignmentIds.isEmpty()) {
+            submissionRepository.deleteByStudentIdAndAssignmentIdIn(studentId, assignmentIds);
+            gradeRepository.deleteByStudentIdAndAssignmentIdIn(studentId, assignmentIds);
+        }
+
+        if (!quizIds.isEmpty()) {
+            quizAttemptRepository.deleteByStudentIdAndQuizIdIn(studentId, quizIds);
+            gradeRepository.deleteByStudentIdAndQuizIdIn(studentId, quizIds);
         }
     }
 

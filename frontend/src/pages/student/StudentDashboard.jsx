@@ -54,7 +54,7 @@ export default function StudentDashboard() {
       <div className="page-head">
         <p>Welcome back, {user?.name?.split(' ')[0]}.</p>
         <button className="btn btn--primary" onClick={() => { setCode(''); setJoinError(''); setJoinOpen(true) }}>
-          Join another class
+          Join a class
         </button>
       </div>
 
@@ -93,7 +93,7 @@ export default function StudentDashboard() {
                 <section className="panel">
                   <p className="empty">
                     {classCount === 0 
-                      ? "You haven't joined any classes yet. Use the button above to join one with a code from your teacher."
+                      ? "You haven't joined any classes yet. Use the button above to join one with a code from your school."
                       : "No topics have been published for your classes yet."}
                   </p>
                 </section>
@@ -159,11 +159,11 @@ export default function StudentDashboard() {
               <input
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
-                placeholder="JSS-4K7Q"
+                placeholder="PYT-4K7Q"
                 required
               />
             </label>
-            <p className="hint">Ask your teacher for the class code if you don't have it.</p>
+            <p className="hint">Ask your school for the class code if you don't have it.</p>
             {joinError && <p className="field__error" role="alert">{joinError}</p>}
             <button className="btn btn--primary btn--block" type="submit" disabled={busy || !code.trim()}>
               {busy ? 'Joining…' : 'Join class'}

@@ -16,6 +16,13 @@ export default function SchoolAddressRequired({ path = '/login', error = '' }) {
 
   const shownError = checkError || error
 
+  // FIXED: Dynamically determine the domain suffix based on environment
+  const isLocalhost = window.location.hostname.endsWith('localhost');
+  const port = window.location.port ? `:${window.location.port}` : '';
+  const baseDomain = isLocalhost 
+    ? `localhost${port}` 
+    : (import.meta.env.VITE_ROOT_DOMAIN || 'nexuslms.com');
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setCheckError('')
@@ -58,11 +65,11 @@ export default function SchoolAddressRequired({ path = '/login', error = '' }) {
               <input
                 aria-label="School address"
                 value={value}
-                placeholder="lincoln"
+                placeholder="nexus"
                 onChange={(e) => { setValue(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setCheckError('') }}
                 disabled={busy}
               />
-              <span>.nexuslms.com</span>
+              <span>.{baseDomain}</span>
             </div>
           </div>
 

@@ -80,8 +80,11 @@ function ClassGradebookView({ gb, classData, onSaveSettings }) {
       <div className="panel__head panel__head--flex-start">
         <div>
           <h2>Class Gradebook</h2>
-          <p className="muted-text" style={{ marginTop: '0.2rem' }}>
-            {gb.rows.length} {gb.rows.length === 1 ? 'student' : 'students'} · {gb.gradingMethod === 'WEIGHTED' ? 'Weighted Grade' : 'Raw Points'}
+          <p className="muted-text mt-sm">
+            {gb.rows.length} {gb.rows.length === 1 ? 'student' : 'students'} ·{' '}
+            {gb.gradingMethod === 'WEIGHTED' 
+              ? `Weighted (Assignments ${classData.assignmentWeight ?? 30}%, Quizzes ${classData.quizWeight ?? 30}%, Exams ${classData.examWeight ?? 40}%)` 
+              : 'Raw Points'}
           </p>
         </div>
         
@@ -185,6 +188,7 @@ export default function ClassDetail() {
   const [gradebook, setGradebook] = useState(null)
   const [tab, setTab] = useState('Topics')
   const [error, setError] = useState('')
+  const [examsError, setExamsError] = useState('') // NEW: For inline exam errors
 
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ title: '', description: '' })
@@ -281,12 +285,13 @@ export default function ClassDetail() {
   }
 
   const toggleRelease = async (q) => {
+    setExamsError('') // Clear previous errors
     setBusyExamId(q.id)
     try {
       const updated = await setQuizReleased(q.id, !q.resultsReleased)
       setExams(exams.map((x) => (x.id === q.id ? updated : x)))
     } catch (err) {
-      alert(err.message)
+      setExamsError(err.message) // Show inline error instead of alert
     } finally {
       setBusyExamId(null)
     }
@@ -391,6 +396,8 @@ export default function ClassDetail() {
               <Link to={`/teacher/quizzes/new?class=${classId}`} className="btn btn--primary btn--sm">New exam</Link>
             </div>
             
+            {examsError && <p className="field__error mb-2" role="alert">{examsError}</p>}
+            
             {exams === null ? (
               <p className="empty">Loading…</p>
             ) : exams.length === 0 ? (
@@ -423,14 +430,12 @@ export default function ClassDetail() {
                         </td>
                         <td className="cell-wrap">
                           <div className="row-actions">
-                            {/* FIXED: Changed Edit to View if published */}
                             {q.published ? (
                               <Link to={`/teacher/quizzes/${q.id}/edit?preview=true`} className="btn btn--ghost btn--sm">View</Link>
                             ) : (
                               <Link to={`/teacher/quizzes/${q.id}/edit`} className="btn btn--ghost btn--sm">Edit</Link>
                             )}
                             
-                            {/* FIXED: Removed the restriction so teachers can ALWAYS view scores */}
                             <Link to={`/teacher/quizzes/${q.id}/mark`} className="btn btn--ghost btn--sm">
                               View Scores
                             </Link>

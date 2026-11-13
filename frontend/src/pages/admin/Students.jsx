@@ -56,7 +56,7 @@ export default function Students() {
     setManageError('')
     setBusy(true)
     try {
-      await removeStudentFromClass(manage.id, classId)
+      await removeStudentFromClass(classId, manage.id)
       const updatedClasses = manage.classIds.filter((id) => id !== classId)
       setManage({ ...manage, classIds: updatedClasses })
       setStudents(students.map((s) => s.id === manage.id ? { ...s, classIds: updatedClasses } : s))
